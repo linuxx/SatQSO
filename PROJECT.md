@@ -42,12 +42,16 @@ Out of scope for the first slice:
 
 As of 2026-08-25:
 
-- Project is a stock Android Compose app under package `com.thenetworkings.satqso`.
+- Project has the first pass-list vertical slice under package `com.thenetworkings.satqso`.
 - Build uses AGP 9.3.2, Kotlin Compose plugin 2.2.10, compile SDK 37, target SDK 37, min SDK 24.
-- Baseline build verified with `.\gradlew.bat :app:assembleDebug`.
+- Build verified with `.\gradlew.bat :app:assembleDebug`.
+- Unit tests verified with `.\gradlew.bat :app:testDebugUnitTest`.
 
 ## Important Decisions
 
 - Orbital calculations should run locally using TLE/GP data and an SGP4-compatible implementation.
 - Avoid server-dependent pass prediction.
+- Orekit is the selected SGP4/TLE engine for the first implementation. It is wrapped behind `PassPredictor`.
+- Orekit requires time-scale data. The app currently packages `orekit-data/tai-utc.dat` as a Java resource and initializes Orekit through `OrekitData`.
+- The first slice uses CelesTrak GP TLE endpoints for the `amateur` and `stations` groups.
 - Major architecture or dependency choices that materially affect long-term maintainability should be confirmed before proceeding.
