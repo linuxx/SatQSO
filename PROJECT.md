@@ -53,5 +53,5 @@ As of 2026-08-25:
 - Avoid server-dependent pass prediction.
 - Orekit is the selected SGP4/TLE engine for the first implementation. It is wrapped behind `PassPredictor`.
 - Orekit requires time-scale data. The app currently packages `orekit-data/tai-utc.dat` as a Java resource and initializes Orekit through `OrekitData`.
-- The first slice uses CelesTrak GP TLE endpoints for the `amateur` and `stations` groups.
+- The first slice uses AMSAT `nasabare.txt` plus CelesTrak GP TLE endpoints for the `amateur` and `stations` groups. Fetching is best-effort across sources so a single unreachable feed does not fail pass calculation.
 - Major architecture or dependency choices that materially affect long-term maintainability should be confirmed before proceeding.

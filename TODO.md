@@ -28,6 +28,7 @@
 - [ ] Confirm curated satellite operating metadata against current AMSAT/ARISS source material.
 - [ ] Add a fallback location entry path for emulators and devices without a recent fused location fix.
 - [ ] Add user-selectable minimum elevation cutoff.
+- [ ] Persist the last successful TLE set locally so pass calculation works completely offline after first launch.
 
 ## Later Phases
 

@@ -26,10 +26,12 @@
 - Dependency build after adding Orekit and Android support libraries completed successfully.
 - `.\gradlew.bat :app:testDebugUnitTest` passes.
 - `.\gradlew.bat :app:assembleDebug` passes.
+- CelesTrak was observed timing out on 2026-08-25 at `104.168.149.178:443`; AMSAT `nasabare.txt` was reachable and added as a fallback source.
 
 ### Current State
 
 - The app can request location, fetch TLEs, calculate today's visible passes locally, and display a pass list.
+- TLE fetch now tries AMSAT and CelesTrak independently, using whichever configured source responds.
 - Pass prediction currently samples at 60-second intervals. AOS/LOS times are useful for the first slice but should be refined before relying on them for operating-critical timing.
 - Runtime behavior on an Android device/emulator still needs manual or instrumentation verification.
 

@@ -10,18 +10,31 @@ class CelestrakTleDataSource(
     private val httpClient: OkHttpClient,
 ) {
     private val urls = listOf(
+        "https://www.amsat.org/tle/current/nasabare.txt",
         "https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=tle",
         "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle",
     )
 
     suspend fun fetchTles(noradIds: Set<Int>): Map<Int, Tle> = withContext(Dispatchers.IO) {
-        urls
-            .flatMap { fetchUrl(it) }
+        val failures = mutableListOf<String>()
+        val tles = urls
+            .flatMap { url ->
+                runCatching { fetchUrl(url) }
+                    .onFailure { failures += "${url.hostLabel()}: ${it.message ?: it.javaClass.simpleName}" }
+                    .getOrDefault(emptyList())
+            }
             .mapNotNull { tle ->
                 val id = tle.noradId()
                 if (id != null && id in noradIds) id to tle else null
             }
             .toMap()
+
+        if (tles.isEmpty()) {
+            val detail = failures.joinToString("; ").ifBlank { "no matching TLEs found" }
+            error("Unable to load orbital elements from AMSAT or CelesTrak. $detail")
+        }
+
+        tles
     }
 
     private fun fetchUrl(url: String): List<Tle> {
@@ -62,4 +75,6 @@ class CelestrakTleDataSource(
 
     private fun String.substringOrNull(startIndex: Int, endIndex: Int): String? =
         if (length >= endIndex) substring(startIndex, endIndex) else null
+
+    private fun String.hostLabel(): String = substringAfter("://").substringBefore("/")
 }
