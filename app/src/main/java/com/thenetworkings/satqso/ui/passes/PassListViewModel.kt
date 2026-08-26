@@ -3,7 +3,10 @@ package com.thenetworkings.satqso.ui.passes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.thenetworkings.satqso.data.PassDisplayPreferences
 import com.thenetworkings.satqso.data.SatellitePassRepository
+import com.thenetworkings.satqso.domain.ObserverLocation
+import com.thenetworkings.satqso.domain.OperatingMode
 import com.thenetworkings.satqso.domain.PassSummary
 import com.thenetworkings.satqso.location.LocationRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,23 +18,43 @@ import kotlinx.coroutines.launch
 data class PassListUiState(
     val isLoading: Boolean = false,
     val needsLocationPermission: Boolean = true,
+    val showManualLocationEditor: Boolean = false,
+    val showFilters: Boolean = false,
     val passes: List<PassSummary> = emptyList(),
+    val selectedPass: PassSummary? = null,
+    val observerLocation: ObserverLocation? = null,
+    val unfilteredPassCount: Int = 0,
+    val minimumElevationDegrees: Int = DefaultMinimumElevationDegrees,
+    val selectedOperatingModes: Set<OperatingMode> = OperatingModeFilters.toSet(),
     val errorMessage: String? = null,
 )
 
 class PassListViewModel(
     private val locationRepository: LocationRepository,
     private val passRepository: SatellitePassRepository,
+    private val passDisplayPreferences: PassDisplayPreferences,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(PassListUiState())
     val uiState: StateFlow<PassListUiState> = _uiState.asStateFlow()
+    private var allPasses: List<PassSummary> = emptyList()
 
     init {
+        val minimumElevationDegrees = passDisplayPreferences.minimumElevationDegrees()
+            .takeIf { it in MinimumElevationCutoffs }
+            ?: DefaultMinimumElevationDegrees
+        val selectedOperatingModes = passDisplayPreferences.operatingModes()
+            .ifEmpty { OperatingModeFilters.toSet() }
+        _uiState.update {
+            it.copy(
+                minimumElevationDegrees = minimumElevationDegrees,
+                selectedOperatingModes = selectedOperatingModes,
+            )
+        }
         refresh()
     }
 
     fun refresh() {
-        if (!locationRepository.hasLocationPermission()) {
+        if (!locationRepository.hasLocationPermission() && !locationRepository.hasManualLocation()) {
             _uiState.update {
                 it.copy(
                     isLoading = false,
@@ -53,12 +76,18 @@ class PassListViewModel(
 
             runCatching {
                 val location = locationRepository.currentLocation()
-                passRepository.todayPasses(location)
-            }.onSuccess { passes ->
+                location to passRepository.todayPasses(location)
+            }.onSuccess { (location, passes) ->
+                allPasses = passes
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        passes = passes,
+                        observerLocation = location,
+                        passes = passes.filterByPassFilters(
+                            minimumElevationDegrees = it.minimumElevationDegrees,
+                            operatingModes = it.selectedOperatingModes,
+                        ),
+                        unfilteredPassCount = passes.size,
                         errorMessage = null,
                     )
                 }
@@ -73,12 +102,92 @@ class PassListViewModel(
         }
     }
 
+    fun setMinimumElevationDegrees(value: Int) {
+        if (value !in MinimumElevationCutoffs) return
+        passDisplayPreferences.saveMinimumElevationDegrees(value)
+        _uiState.update {
+            it.copy(
+                minimumElevationDegrees = value,
+                passes = allPasses.filterByPassFilters(
+                    minimumElevationDegrees = value,
+                    operatingModes = it.selectedOperatingModes,
+                ),
+            )
+        }
+    }
+
+    fun toggleOperatingMode(mode: OperatingMode) {
+        _uiState.update {
+            val selectedModes = if (mode in it.selectedOperatingModes) {
+                it.selectedOperatingModes - mode
+            } else {
+                it.selectedOperatingModes + mode
+            }.ifEmpty { OperatingModeFilters.toSet() }
+
+            passDisplayPreferences.saveOperatingModes(selectedModes)
+            it.copy(
+                selectedOperatingModes = selectedModes,
+                passes = allPasses.filterByPassFilters(
+                    minimumElevationDegrees = it.minimumElevationDegrees,
+                    operatingModes = selectedModes,
+                ),
+            )
+        }
+    }
+
+    fun selectPass(pass: PassSummary) {
+        _uiState.update { it.copy(selectedPass = pass) }
+    }
+
+    fun closePassDetails() {
+        _uiState.update { it.copy(selectedPass = null) }
+    }
+
+    fun showFilters() {
+        _uiState.update { it.copy(showFilters = true) }
+    }
+
+    fun dismissFilters() {
+        _uiState.update { it.copy(showFilters = false) }
+    }
+
+    fun showManualLocationEditor() {
+        _uiState.update { it.copy(showManualLocationEditor = true) }
+    }
+
+    fun dismissManualLocationEditor() {
+        _uiState.update { it.copy(showManualLocationEditor = false) }
+    }
+
+    fun saveManualLocation(latitudeText: String, longitudeText: String, altitudeText: String): String? {
+        val latitude = latitudeText.toDoubleOrNull()
+            ?.takeIf { it.isFinite() && it in -90.0..90.0 }
+            ?: return "Enter a latitude between -90 and 90."
+        val longitude = longitudeText.toDoubleOrNull()
+            ?.takeIf { it.isFinite() && it in -180.0..180.0 }
+            ?: return "Enter a longitude between -180 and 180."
+        val altitude = altitudeText.ifBlank { "0" }.toDoubleOrNull()?.takeIf { it.isFinite() }
+            ?: return "Enter a valid altitude in meters."
+
+        locationRepository.saveManualLocation(
+            ObserverLocation(
+                latitudeDegrees = latitude,
+                longitudeDegrees = longitude,
+                altitudeMeters = altitude,
+            ),
+        )
+        _uiState.update { it.copy(showManualLocationEditor = false) }
+        refresh()
+        return null
+    }
+
     class Factory(
         private val locationRepository: LocationRepository,
         private val passRepository: SatellitePassRepository,
+        private val passDisplayPreferences: PassDisplayPreferences,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            PassListViewModel(locationRepository, passRepository) as T
+            PassListViewModel(locationRepository, passRepository, passDisplayPreferences) as T
     }
 }

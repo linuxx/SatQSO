@@ -5,9 +5,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.time.Clock
+import java.time.Duration
 
 class CelestrakTleDataSource(
     private val httpClient: OkHttpClient,
+    private val cache: TleCache? = null,
+    private val clock: Clock = Clock.systemUTC(),
 ) {
     private val urls = listOf(
         "https://www.amsat.org/tle/current/nasabare.txt",
@@ -16,6 +20,15 @@ class CelestrakTleDataSource(
     )
 
     suspend fun fetchTles(noradIds: Set<Int>): Map<Int, Tle> = withContext(Dispatchers.IO) {
+        val cachedTles = cache?.read()
+        val matchingCachedTles = cachedTles?.tlesByNoradId.orEmpty().filterKeys { it in noradIds }
+        if (cachedTles != null &&
+            matchingCachedTles.keys.containsAll(noradIds) &&
+            Duration.between(cachedTles.fetchedAt, clock.instant()) < CACHE_TTL
+        ) {
+            return@withContext matchingCachedTles
+        }
+
         val failures = mutableListOf<String>()
         val tles = urls
             .flatMap { url ->
@@ -30,10 +43,19 @@ class CelestrakTleDataSource(
             .toMap()
 
         if (tles.isEmpty()) {
+            if (matchingCachedTles.isNotEmpty()) {
+                return@withContext matchingCachedTles
+            }
             val detail = failures.joinToString("; ").ifBlank { "no matching TLEs found" }
             error("Unable to load orbital elements from AMSAT or CelesTrak. $detail")
         }
 
+        cache?.write(
+            CachedTles(
+                fetchedAt = clock.instant(),
+                tlesByNoradId = cachedTles?.tlesByNoradId.orEmpty() + tles,
+            ),
+        )
         tles
     }
 
@@ -77,4 +99,8 @@ class CelestrakTleDataSource(
         if (length >= endIndex) substring(startIndex, endIndex) else null
 
     private fun String.hostLabel(): String = substringAfter("://").substringBefore("/")
+
+    private companion object {
+        val CACHE_TTL: Duration = Duration.ofHours(12)
+    }
 }

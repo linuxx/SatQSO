@@ -1,8 +1,10 @@
 package com.thenetworkings.satqso.domain
 
 import java.time.Instant
+import java.time.Duration
 import java.util.Date
 import kotlin.math.max
+import kotlin.math.roundToLong
 import org.hipparchus.util.FastMath
 import org.orekit.bodies.GeodeticPoint
 import org.orekit.bodies.OneAxisEllipsoid
@@ -63,32 +65,73 @@ class OrekitPassPredictor : PassPredictor {
         val propagator = TLEPropagator.selectExtrapolator(TLE(tle.line1, tle.line2))
         val passes = mutableListOf<PassSummary>()
         var current = start
-        var activePass: MutablePass? = null
+        var previous = TimedSkySample(current, sampleAt(propagator, observer, current))
+        var activePass: MutablePass? = previous.takeIf { it.sample.elevationDegrees > 0.0 }
+            ?.let { sample ->
+                MutablePass(
+                    aos = sample.instant,
+                    aosAzimuthDegrees = sample.sample.azimuthDegrees,
+                    maxElevationDegrees = sample.sample.elevationDegrees,
+                    losAzimuthDegrees = sample.sample.azimuthDegrees,
+                )
+            }
         val sampleStepSeconds = 60L
 
-        while (!current.isAfter(end)) {
-            val sample = sampleAt(propagator, observer, current)
-            if (sample.elevationDegrees > 0.0) {
-                val pass = activePass ?: MutablePass(
-                    aos = current,
-                    aosAzimuthDegrees = sample.azimuthDegrees,
-                    maxElevationDegrees = sample.elevationDegrees,
-                    losAzimuthDegrees = sample.azimuthDegrees,
-                ).also { activePass = it }
+        while (current.isBefore(end)) {
+            current = minOf(current.plusSeconds(sampleStepSeconds), end)
+            val sample = TimedSkySample(current, sampleAt(propagator, observer, current))
 
-                if (sample.elevationDegrees > pass.maxElevationDegrees) {
-                    pass.maxElevationDegrees = sample.elevationDegrees
+            when {
+                previous.sample.elevationDegrees <= 0.0 && sample.sample.elevationDegrees > 0.0 -> {
+                    val aos = findHorizonCrossing(propagator, observer, previous, sample)
+                    activePass = MutablePass(
+                        aos = aos.instant,
+                        aosAzimuthDegrees = aos.sample.azimuthDegrees,
+                        maxElevationDegrees = aos.sample.elevationDegrees,
+                        losAzimuthDegrees = aos.sample.azimuthDegrees,
+                    ).also { it.record(sample) }
                 }
-                pass.los = current
-                pass.losAzimuthDegrees = sample.azimuthDegrees
-            } else if (activePass != null) {
-                activePass?.toSummary(satellite)?.let(passes::add)
-                activePass = null
+                previous.sample.elevationDegrees > 0.0 && sample.sample.elevationDegrees <= 0.0 -> {
+                    val los = findHorizonCrossing(propagator, observer, previous, sample)
+                    activePass?.apply {
+                        this.los = los.instant
+                        losAzimuthDegrees = los.sample.azimuthDegrees
+                    }?.toSummary(satellite)?.let(passes::add)
+                    activePass = null
+                }
+                sample.sample.elevationDegrees > 0.0 -> activePass?.record(sample)
             }
-            current = current.plusSeconds(sampleStepSeconds)
+            previous = sample
         }
         activePass?.toSummary(satellite)?.let(passes::add)
         return passes
+    }
+
+    private fun findHorizonCrossing(
+        propagator: TLEPropagator,
+        observer: TopocentricFrame,
+        before: TimedSkySample,
+        after: TimedSkySample,
+    ): TimedSkySample {
+        var lower = before
+        var upper = after
+        while (Duration.between(lower.instant, upper.instant) > BOUNDARY_PRECISION) {
+            val midpoint = lower.instant.plusMillis(
+                Duration.between(lower.instant, upper.instant).toMillis() / 2,
+            )
+            val midpointSample = TimedSkySample(midpoint, sampleAt(propagator, observer, midpoint))
+            if ((lower.sample.elevationDegrees > 0.0) == (midpointSample.sample.elevationDegrees > 0.0)) {
+                lower = midpointSample
+            } else {
+                upper = midpointSample
+            }
+        }
+
+        val intervalMillis = Duration.between(lower.instant, upper.instant).toMillis()
+        val elevationRange = upper.sample.elevationDegrees - lower.sample.elevationDegrees
+        val fraction = if (elevationRange == 0.0) 0.5 else -lower.sample.elevationDegrees / elevationRange
+        val crossing = lower.instant.plusMillis((intervalMillis * fraction.coerceIn(0.0, 1.0)).roundToLong())
+        return TimedSkySample(crossing, sampleAt(propagator, observer, crossing))
     }
 
     private fun sampleAt(
@@ -108,6 +151,11 @@ class OrekitPassPredictor : PassPredictor {
         val azimuthDegrees: Double,
     )
 
+    private data class TimedSkySample(
+        val instant: Instant,
+        val sample: SkySample,
+    )
+
     private data class MutablePass(
         val aos: Instant,
         var los: Instant = aos,
@@ -115,6 +163,14 @@ class OrekitPassPredictor : PassPredictor {
         var losAzimuthDegrees: Double,
         var maxElevationDegrees: Double,
     ) {
+        fun record(timedSample: TimedSkySample) {
+            if (timedSample.sample.elevationDegrees > maxElevationDegrees) {
+                maxElevationDegrees = timedSample.sample.elevationDegrees
+            }
+            los = timedSample.instant
+            losAzimuthDegrees = timedSample.sample.azimuthDegrees
+        }
+
         fun toSummary(satellite: Satellite): PassSummary? {
             val durationSeconds = max(0L, los.epochSecond - aos.epochSecond)
             return if (durationSeconds >= 120L) {
@@ -133,4 +189,8 @@ class OrekitPassPredictor : PassPredictor {
     }
 
     private fun Double.normalizeDegrees(): Double = if (this < 0.0) this + 360.0 else this
+
+    private companion object {
+        val BOUNDARY_PRECISION: Duration = Duration.ofSeconds(1)
+    }
 }

@@ -36,5 +36,10 @@ class OrekitPassPredictorTest {
 
         assertTrue(passes.isNotEmpty())
         assertTrue(passes.all { it.maxElevationDegrees > 0.0 })
+        assertTrue(
+            passes.any { pass ->
+                pass.aos.epochSecond % 60L != 0L || pass.los.epochSecond % 60L != 0L
+            },
+        )
     }
 }

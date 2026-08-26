@@ -24,18 +24,19 @@
 ## Phase 1 Follow-Up Hardening
 
 - [ ] Add instrumentation/manual device verification for Android runtime permission, location, network, and Orekit resource loading.
-- [ ] Improve pass boundary accuracy by interpolating AOS/LOS instead of using 60-second samples.
+- [x] Improve pass boundary accuracy by interpolating AOS/LOS instead of using 60-second samples.
 - [ ] Confirm curated satellite operating metadata against current AMSAT/ARISS source material.
-- [ ] Add a fallback location entry path for emulators and devices without a recent fused location fix.
-- [ ] Add user-selectable minimum elevation cutoff.
-- [ ] Persist the last successful TLE set locally so pass calculation works completely offline after first launch.
+- [x] Add a fallback location entry path for emulators and devices without a recent fused location fix.
+- [x] Add user-selectable minimum elevation cutoff.
+- [x] Persist the last successful TLE set locally so pass calculation works completely offline after first launch.
 
 ## Later Phases
 
 - [ ] Add Room persistence for satellite metadata and orbital elements.
-- [ ] Add WorkManager periodic TLE/GP refresh.
-- [ ] Add filtering by FM Voice, SSB/CW, APRS, SSTV, Digital/Data, and Telemetry.
-- [ ] Add detailed pass screen with AOS, maximum elevation, LOS, azimuth/elevation timeline, path visualization, and operating notes.
+- [x] Add WorkManager periodic TLE/GP refresh.
+- [x] Add filtering by FM Voice, SSB/CW, APRS, SSTV, Digital/Data, and Telemetry.
+- [x] Add detailed pass screen with AOS, maximum elevation, LOS, azimuths, frequencies, and operating notes.
+- [ ] Add azimuth/elevation timeline and path visualization to the pass detail screen.
 - [ ] Add compass/device orientation integration.
 - [ ] Add real-time Doppler-corrected uplink/downlink display.
 - [ ] Add settings for location source, preferred satellites, elevation cutoff, time format, and band/mode preferences.

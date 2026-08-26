@@ -15,25 +15,57 @@ class LocationRepository(
     private val context: Context,
 ) {
     private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+    private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
     fun hasLocationPermission(): Boolean =
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
+    fun hasManualLocation(): Boolean =
+        preferences.contains(LATITUDE_KEY) && preferences.contains(LONGITUDE_KEY)
+
+    fun saveManualLocation(location: ObserverLocation) {
+        preferences.edit()
+            .putString(LATITUDE_KEY, location.latitudeDegrees.toString())
+            .putString(LONGITUDE_KEY, location.longitudeDegrees.toString())
+            .putString(ALTITUDE_KEY, location.altitudeMeters.toString())
+            .apply()
+    }
+
     @SuppressLint("MissingPermission")
     suspend fun currentLocation(): ObserverLocation {
-        check(hasLocationPermission()) { "Location permission has not been granted." }
+        if (!hasLocationPermission()) {
+            return manualLocation() ?: error("Location permission has not been granted.")
+        }
 
-        val cached = fusedLocationClient.lastLocation.await()
-        val location = cached ?: fusedLocationClient
-            .getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, CancellationTokenSource().token)
-            .await()
-            ?: error("Unable to obtain current location.")
+        val location = runCatching {
+            val cached = fusedLocationClient.lastLocation.await()
+            cached ?: fusedLocationClient
+                .getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, CancellationTokenSource().token)
+                .await()
+                ?: error("Unable to obtain current location.")
+        }.getOrElse { throwable ->
+            return manualLocation() ?: throw throwable
+        }
 
         return ObserverLocation(
             latitudeDegrees = location.latitude,
             longitudeDegrees = location.longitude,
             altitudeMeters = if (location.hasAltitude()) location.altitude else 0.0,
         )
+    }
+
+    private fun manualLocation(): ObserverLocation? {
+        val latitude = preferences.getString(LATITUDE_KEY, null)?.toDoubleOrNull() ?: return null
+        val longitude = preferences.getString(LONGITUDE_KEY, null)?.toDoubleOrNull() ?: return null
+        val altitude = preferences.getString(ALTITUDE_KEY, null)?.toDoubleOrNull() ?: 0.0
+        return ObserverLocation(latitude, longitude, altitude)
+    }
+
+    private companion object {
+        const val PREFERENCES_NAME = "manual_location"
+        const val LATITUDE_KEY = "latitude"
+        const val LONGITUDE_KEY = "longitude"
+        const val ALTITUDE_KEY = "altitude"
     }
 }
