@@ -1,108 +1,90 @@
 # SatQSO
 
-SatQSO is an Android satellite-pass planner for amateur radio operators. It calculates visible passes from current or manually entered coordinates and presents satellite, timing, elevation, direction, frequency, and operating-mode details.
+SatQSO is an Android pass planner for amateur-radio satellites. It calculates passes on-device from the observer location and current TLE data.
 
 ## Features
 
-- Orekit-based pass prediction with accurate AOS and LOS boundaries.
-- AMSAT and CelesTrak TLE data with a 12-hour cache and source fallback.
+- Orekit pass prediction with interpolated AOS and LOS boundaries.
+- AMSAT and CelesTrak TLE feeds, a 12-hour cache, and offline fallback.
+- GPS, decimal-coordinate entry, and an OpenStreetMap location picker.
+- Four- and six-character Maidenhead locators.
+- Minimum-elevation, operating-mode, and 24-hour to 7-day filters.
+- Upcoming-pass start times and live countdowns.
+- Compass-oriented sky path with live satellite position.
+- Azimuth and elevation timeline.
+- Uplink, downlink, tone, mode, and satellite operating notes.
 - Background TLE refresh through WorkManager.
-- Offline fallback to the most recent cached orbital data.
-- GPS location with manual latitude, longitude, and altitude fallback.
-- Maidenhead locator and live local-time display.
-- Minimum-elevation and operating-mode filters.
-- Rolling upcoming-pass list for the next 24 hours, with configurable 24-hour, 2-day, 4-day, or 7-day look-ahead.
-- Per-pass start time and live countdown on the home screen.
-- Screen stays on while the app is open for pass monitoring.
-- Pass detail view with satellite-specific radio information.
-- Azimuth/elevation timeline in pass details.
-- Device heading readout in the sky view when a rotation sensor is available.
-- Live satellite position marker synchronized with the pass timeline.
-- Pass-state countdown for upcoming, active, and completed passes.
-- High-resolution launcher icon and dark space-themed UI.
 
 ## Screenshots
 
 ### Upcoming passes
 
-The home screen shows only future passes in the selected rolling window. Each pass includes its local start time, live countdown, maximum elevation, and direction.
-
 <table>
   <tr>
-    <td><a href="docs/screenshots/home.png"><img src="docs/screenshots/home-1.2.1-thumb.png" alt="SatQSO upcoming pass list"></a></td>
-    <td><a href="docs/screenshots/home-lower.png"><img src="docs/screenshots/home-lower-thumb.png" alt="SatQSO additional upcoming passes"></a></td>
+    <td><a href="docs/screenshots/home.png"><img src="docs/screenshots/home-1.2.1-thumb.png" alt="Upcoming pass list"></a></td>
+    <td><a href="docs/screenshots/home-lower.png"><img src="docs/screenshots/home-lower-thumb.png" alt="More upcoming passes"></a></td>
   </tr>
 </table>
 
-### Look-ahead filters
+### Filters
 
-The filter dialog supports 24 hours, 2 days, 4 days, and 7 days, along with elevation and operating-mode filters.
+[![Pass filters](docs/screenshots/filters-thumb.png)](docs/screenshots/filters.png)
 
-[![SatQSO look-ahead filters](docs/screenshots/filters-thumb.png)](docs/screenshots/filters.png)
-
-### Pass tracking
-
-Pass details include a compass-oriented sky path, live satellite position, heading, countdown state, and elevation/azimuth timeline.
+### Pass details
 
 <table>
   <tr>
-    <td><a href="docs/screenshots/pass-detail.png"><img src="docs/screenshots/pass-detail-1.2.1-thumb.png" alt="SatQSO pass tracking detail"></a></td>
-    <td><a href="docs/screenshots/pass-detail-bottom.png"><img src="docs/screenshots/pass-detail-bottom-thumb.png" alt="SatQSO operating notes"></a></td>
+    <td><a href="docs/screenshots/pass-detail.png"><img src="docs/screenshots/pass-detail-1.2.1-thumb.png" alt="Compass pass tracking"></a></td>
+    <td><a href="docs/screenshots/pass-detail-bottom.png"><img src="docs/screenshots/pass-detail-bottom-thumb.png" alt="Pass timeline and operating information"></a></td>
   </tr>
 </table>
 
-The screenshots use ImageMagick-redacted location fields for privacy. Click any thumbnail to view the full-size capture.
+## Install
 
-## Releases
+[Download the latest APK from GitHub Releases](https://github.com/linuxx/SatQSO/releases).
 
-The latest release APK is available from the [SatQSO releases](https://github.com/linuxx/SatQSO/releases) page.
+SatQSO requires Android 7.0 (API 24) or newer. Location permission enables GPS-based predictions; internet access updates TLE data. Saved coordinates and cached TLEs can be used offline.
 
-## Requirements
-
-- Android Studio or the Android SDK.
-- JDK 11.
-- Android SDK platform 37.
-- A device or emulator running Android 7.0 (API 24) or newer.
-
-The app needs location permission for GPS-based predictions and internet access to download current TLE data. Manual coordinates and cached TLEs allow it to remain useful without either service.
-
-Tap the location summary on the home screen to choose a different point on the map. Tap **Use this location** to calculate passes from the pin, or **Reset to GPS** to return to the device location.
-
-The location summary is amber and labeled `GPS • MODIFIED` whenever a saved map pin is active.
+Tap the location panel to select a point on the map. `Reset to GPS` restores the device location. An amber `GPS • MODIFIED` label identifies a saved map location.
 
 ## Build
 
-From the project directory:
+Requirements:
+
+- JDK 11
+- Android SDK platform 37
+- Android Studio or the Android SDK command-line tools
+
+Run the unit tests and build a debug APK:
 
 ```powershell
-.\gradlew.bat testDebugUnitTest
-.\gradlew.bat assembleDebug
+.\gradlew.bat :app:testDebugUnitTest
+.\gradlew.bat :app:assembleDebug
 ```
 
-For a distributable release build, create a local `keystore.properties` file with the signing values and run:
+Install the debug build on a connected device:
 
 ```powershell
-.\gradlew.bat assembleRelease
+.\gradlew.bat :app:installDebug
 ```
 
-The release APK is generated at `app/build/outputs/apk/release/app-release.apk`. Keep the release keystore and its passwords backed up; they are required for future app updates.
-
-To install the debug build on a connected device:
+For a signed release, create an ignored `keystore.properties` file with the signing values and run:
 
 ```powershell
-.\gradlew.bat installDebug
+.\gradlew.bat :app:assembleRelease
 ```
 
-The generated APK is located at `app/build/outputs/apk/debug/app-debug.apk`.
+APK output:
 
-## Project layout
+- Debug: `app/build/outputs/apk/debug/app-debug.apk`
+- Release: `app/build/outputs/apk/release/app-release.apk`
 
-- `app/src/main/java/.../data` — TLE caching, refresh scheduling, and pass data sources.
-- `app/src/main/java/.../domain` — satellite models and Orekit prediction logic.
-- `app/src/main/java/.../location` — GPS and manual location handling.
-- `app/src/main/java/.../ui` — Compose screens, filters, theming, and formatting.
-- `app/src/test` — unit tests for caching, prediction boundaries, filters, and location formatting.
+Keep the release keystore and passwords backed up. The same key is required to publish app updates.
 
-## Orbital data
+## Project Layout
 
-TLE data is fetched from AMSAT and CelesTrak. Cached data is considered fresh for 12 hours; when a network request fails, the app uses the newest available stale cache rather than failing immediately.
+- `data`: TLE sources, cache, repository, preferences, and refresh scheduling.
+- `domain`: satellite models, parsing, and Orekit pass prediction.
+- `location`: device location and orientation sensors.
+- `ui`: Compose screens, state, formatting, and theme.
+- `app/src/test`: domain, data, filter, and formatting tests.

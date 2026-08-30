@@ -1,56 +1,33 @@
 # SatQSO Progress
 
-## Current State: 2026-08-30
+Release: `1.2.1` (version code `4`)
 
-SatQSO has a working Android prototype for planning amateur-radio satellite passes.
+## Shipped
 
-Current local release build: `1.2.1` (version code `4`).
-
-### Implemented
-
-- Jetpack Compose pass list and pass detail screens.
-- GPS location with manual latitude, longitude, and altitude fallback.
-- Interactive OpenStreetMap location picker with tap-to-place, saved observer location, and Reset to GPS.
-- Amber `GPS • MODIFIED` location indicator when a saved map pin is active.
-- Pass details now mirror the radar mockup with rotating compass marks, live AZ/EL readout, pass summary, and compact frequency layout.
-- Compass now includes rotating 5-degree sub-ticks, and the detail title shows a headline-sized Maidenhead grid.
-- Radar background now includes faint clustered constellation detail inside the compass and no longer repeats a separate NORTH heading; page-level starfield is limited to cards.
-- Curated amateur-radio satellite catalog.
-- Orekit-based local pass prediction from TLE data.
-- Interpolated AOS/LOS boundaries rather than raw 60-second sample boundaries.
-- AMSAT and CelesTrak TLE retrieval with resilient source fallback.
-- Twelve-hour TLE cache and offline use of the last successful dataset.
-- WorkManager background TLE refresh.
+- Local Orekit pass prediction with interpolated AOS and LOS boundaries.
+- AMSAT and CelesTrak source fallback, 12-hour cache, offline cache use, and WorkManager refresh.
+- GPS, decimal-coordinate entry, and OpenStreetMap pin selection with GPS reset.
+- Modified-location indicator and four- and six-character Maidenhead locators.
+- Upcoming-pass list with live countdowns and 24-hour, 2-day, 4-day, and 7-day windows.
 - Minimum-elevation and operating-mode filters.
-- Azimuth/elevation timeline on the pass detail screen.
-- Polar sky-path visualization in the pass detail screen.
-- Device heading readout using the rotation-vector sensor.
-- Time-synchronized satellite marker that follows the sky path and timeline.
-- Live pass-state countdown showing start, end, and completion status.
-- Home screen shows only upcoming passes in a rolling time window, with selectable look-ahead and per-pass start countdowns.
-- Look-ahead options are 24 hours, 2 days, 4 days, and 7 days; the activity keeps the display awake while open.
-- Unit tests for TLE parsing, pass prediction, boundary handling, filters, and location formatting.
+- Compass-oriented pass path, device heading, live satellite marker, and azimuth/elevation timeline.
+- Compact frequency, tone, mode, pass timing, and satellite information panels.
+- Screen-awake behavior while the app is open.
+- Signed release builds with R8 and resource shrinking.
 
-### Verification
+## Verification
 
-- `.\gradlew.bat :app:testDebugUnitTest` passes.
-- `.\gradlew.bat :app:assembleDebug` passes.
-- Debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.
-- Release build is configured with R8/resource shrinking and local keystore signing; the generated APK is `app/build/outputs/apk/release/app-release.apk`.
-- Release verification completed with `testDebugUnitTest`, `assembleDebug`, and `assembleRelease`.
-- Manual phone smoke test passes for launch, GPS display, both Maidenhead formats, filters, and pass details.
-- Manual location-entry and offline-network paths still need runtime verification.
-- Release APK installed and launched successfully on the connected Pixel device.
+- `.\gradlew.bat :app:testDebugUnitTest`
+- `.\gradlew.bat :app:assembleDebug`
+- `.\gradlew.bat :app:assembleRelease`
+- Installed and launched the release APK on a connected Pixel device.
+- Checked launch, GPS display, Maidenhead locators, filters, and pass details on-device.
 
-### Remaining Work
+Manual coordinate entry, complete network failure, stale-cache loading, and Orekit resource loading still need isolated runtime checks.
 
-- Complete runtime verification for manual location entry, network fallback, cache loading, and Orekit resource loading on Android.
-- Confirm curated satellite operating metadata against current AMSAT/ARISS sources.
-- Add Room persistence if the data model grows beyond the current cache.
-- Add map-style sky-path visualization with geographic context.
-- Add real-time Doppler-corrected uplink/downlink frequencies.
-- Add user settings for location source, preferred satellites, time format, and band/mode preferences.
+## Next
 
-### Development Note
-
-Keep `README.md` user-facing, `PROJECT.md` architectural, `TODO.md` task-oriented, and this file focused on shipped functionality, verification, and the next priorities.
+- Verify satellite frequencies, tones, modes, and operating notes against current AMSAT and ARISS sources.
+- Add geographic ground-track visualization.
+- Add Doppler-corrected uplink and downlink frequencies.
+- Add preferences for location source, satellites, time format, bands, and modes.

@@ -1548,7 +1548,7 @@ private fun EmptyState(
             text = if (unfilteredPassCount > 0) {
                 "No passes match filters"
             } else {
-                "No visible passes today"
+                "No visible passes in this window"
             },
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.SemiBold,
@@ -1558,7 +1558,7 @@ private fun EmptyState(
             text = if (unfilteredPassCount > 0) {
                 "$unfilteredPassCount passes are hidden by the current elevation or mode filters."
             } else {
-                "Try refreshing after the latest orbital data is available."
+                "Try a longer look-ahead period or refresh the orbital data."
             },
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

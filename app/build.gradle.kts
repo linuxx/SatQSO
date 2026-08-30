@@ -45,9 +45,6 @@ android {
                 "proguard-rules.pro"
             )
         }
-        debug {
-            // Debug-only tooling and the generic debug key remain confined to debug builds.
-        }
     }
     packaging {
         resources {
