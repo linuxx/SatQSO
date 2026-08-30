@@ -64,6 +64,14 @@ From the project directory:
 .\gradlew.bat assembleDebug
 ```
 
+For a distributable release build, create a local `keystore.properties` file with the signing values and run:
+
+```powershell
+.\gradlew.bat assembleRelease
+```
+
+The release APK is generated at `app/build/outputs/apk/release/app-release.apk`. Keep the release keystore and its passwords backed up; they are required for future app updates.
+
 To install the debug build on a connected device:
 
 ```powershell

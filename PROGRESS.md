@@ -29,6 +29,8 @@ SatQSO has a working Android prototype for planning amateur-radio satellite pass
 - `.\gradlew.bat :app:testDebugUnitTest` passes.
 - `.\gradlew.bat :app:assembleDebug` passes.
 - Debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.
+- Release build is configured with R8/resource shrinking and local keystore signing; the generated APK is `app/build/outputs/apk/release/app-release.apk`.
+- Release verification completed with `testDebugUnitTest`, `assembleDebug`, and `assembleRelease`.
 - Manual phone smoke test passes for launch, GPS display, both Maidenhead formats, filters, and pass details.
 - Manual location-entry and offline-network paths still need runtime verification.
 

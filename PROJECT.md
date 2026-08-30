@@ -53,6 +53,7 @@ As of 2026-08-30:
 - The app supports GPS or manually entered coordinates, current local time display, cached TLEs, scheduled refresh, pass filters, and pass details.
 - Build uses AGP 9.3.2, Kotlin Compose plugin 2.2.10, compile SDK 37, target SDK 37, min SDK 24.
 - Build verified with `.\gradlew.bat :app:assembleDebug`.
+- Release builds use R8/resource shrinking and a local, ignored keystore configuration from `keystore.properties`.
 - Unit tests verified with `.\gradlew.bat :app:testDebugUnitTest`.
 - Manual phone smoke testing covers launch, GPS display, Maidenhead formats, filters, and pass details; manual-location and offline-cache paths remain outstanding.
 

@@ -4,6 +4,7 @@
 
 - [x] Inspect existing Android project.
 - [x] Verify baseline debug build.
+- [x] Configure and verify a signed, shrunk release APK.
 - [x] Add project memory files: `PROJECT.md`, `TODO.md`, `PROGRESS.md`.
 - [x] Initialize Git if no repository exists.
 - [x] Commit baseline documentation.
