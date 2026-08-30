@@ -22,11 +22,12 @@ SatQSO has a working Android prototype for planning amateur-radio satellite pass
 - `.\gradlew.bat :app:testDebugUnitTest` passes.
 - `.\gradlew.bat :app:assembleDebug` passes.
 - Debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.
-- Runtime behavior on a physical device or emulator has not yet been manually verified.
+- Manual phone smoke test passes for launch, GPS display, both Maidenhead formats, filters, and pass details.
+- Manual location-entry and offline-network paths still need runtime verification.
 
 ### Remaining Work
 
-- Verify runtime permission flow, location behavior, network fallback, cache loading, and Orekit resource loading on Android.
+- Complete runtime verification for manual location entry, network fallback, cache loading, and Orekit resource loading on Android.
 - Confirm curated satellite operating metadata against current AMSAT/ARISS sources.
 - Add Room persistence if the data model grows beyond the current cache.
 - Add azimuth/elevation timeline and sky-path visualization.

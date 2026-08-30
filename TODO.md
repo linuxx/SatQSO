@@ -23,7 +23,8 @@
 
 ## Phase 1 Follow-Up Hardening
 
-- [ ] Add instrumentation/manual device verification for Android runtime permission, location, network, and Orekit resource loading.
+- [ ] Complete instrumentation/manual device verification for manual location, network fallback, offline cache, and Orekit resource loading.
+- [x] Manually verify phone launch, GPS display, Maidenhead formats, filters, and pass details.
 - [x] Improve pass boundary accuracy by interpolating AOS/LOS instead of using 60-second samples.
 - [ ] Confirm curated satellite operating metadata against current AMSAT/ARISS source material.
 - [x] Add a fallback location entry path for emulators and devices without a recent fused location fix.

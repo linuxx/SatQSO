@@ -5,7 +5,7 @@ SatQSO is an Android satellite-pass planner for amateur radio operators. It calc
 ## Features
 
 - Orekit-based pass prediction with accurate AOS and LOS boundaries.
-- Celestrak TLE data with a 12-hour cache.
+- AMSAT and CelesTrak TLE data with a 12-hour cache and source fallback.
 - Background TLE refresh through WorkManager.
 - Offline fallback to the most recent cached orbital data.
 - GPS location with manual latitude, longitude, and altitude fallback.
@@ -50,4 +50,4 @@ The generated APK is located at `app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Orbital data
 
-TLE data is fetched from Celestrak. Cached data is considered fresh for 12 hours; when a network request fails, the app uses the newest available stale cache rather than failing immediately.
+TLE data is fetched from AMSAT and CelesTrak. Cached data is considered fresh for 12 hours; when a network request fails, the app uses the newest available stale cache rather than failing immediately.

@@ -54,7 +54,7 @@ As of 2026-08-30:
 - Build uses AGP 9.3.2, Kotlin Compose plugin 2.2.10, compile SDK 37, target SDK 37, min SDK 24.
 - Build verified with `.\gradlew.bat :app:assembleDebug`.
 - Unit tests verified with `.\gradlew.bat :app:testDebugUnitTest`.
-- Manual device/emulator verification remains outstanding.
+- Manual phone smoke testing covers launch, GPS display, Maidenhead formats, filters, and pass details; manual-location and offline-cache paths remain outstanding.
 
 ## Important Decisions
 
