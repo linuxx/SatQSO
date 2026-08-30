@@ -12,6 +12,10 @@ object CuratedSatelliteCatalog {
             uplink = "145.990 MHz FM",
             downlink = "145.800 MHz FM",
             notes = "ARISS packet, SSTV, and crew voice activity when scheduled.",
+            altitudeKm = 408,
+            launchDate = "20 Nov 1998",
+            owner = "NASA / ARISS",
+            website = "ariss.org",
         ),
         Satellite(
             noradId = 27607,
@@ -20,6 +24,10 @@ object CuratedSatelliteCatalog {
             uplink = "145.850 MHz FM, 67.0 Hz tone",
             downlink = "436.795 MHz FM",
             notes = "FM repeater satellite.",
+            altitudeKm = 650,
+            launchDate = "20 Dec 2002",
+            owner = "AMSAT-SA",
+            website = "amsatsa.org.za",
         ),
         Satellite(
             noradId = 42758,
@@ -44,6 +52,9 @@ object CuratedSatelliteCatalog {
             uplink = "145.900 MHz FM, 141.3 Hz tone",
             downlink = "437.500 MHz FM",
             notes = "FM repeater availability varies by schedule.",
+            altitudeKm = 500,
+            owner = "AMSAT-India",
+            website = "amsatindia.org",
         ),
         Satellite(
             noradId = 43803,

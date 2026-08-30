@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -57,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -89,6 +91,7 @@ import com.thenetworkings.satqso.ui.theme.SpaceBorder
 import com.thenetworkings.satqso.ui.theme.SpaceSurface
 import com.thenetworkings.satqso.ui.theme.SpaceSurfaceHigh
 import com.thenetworkings.satqso.ui.theme.SatQSOTheme
+import com.thenetworkings.satqso.ui.theme.TextPrimary
 import com.thenetworkings.satqso.ui.theme.TextSecondary
 import com.thenetworkings.satqso.location.OrientationRepository
 import java.time.Duration
@@ -199,22 +202,33 @@ fun PassListScreen(
                     }
                 },
                 title = {
-                    Column {
-                        val title = uiState.selectedPass?.satellite?.name ?: "SatQSO"
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            text = if (uiState.selectedPass != null) {
-                                "Pass details"
-                            } else {
-                                "Upcoming satellite passes"
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                    if (uiState.selectedPass == null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Sat",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                text = "QSO",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = CyanPrimary,
+                            )
+                        }
+                    } else {
+                        Column {
+                            Text(
+                                text = uiState.selectedPass?.satellite?.name.orEmpty(),
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                text = "Pass details",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -227,6 +241,14 @@ fun PassListScreen(
                         HeaderActionButton(text = "Filter", onClick = onShowFilters)
                         Spacer(Modifier.width(8.dp))
                         HeaderActionButton(text = "Refresh", onClick = onRefresh)
+                    } else {
+                        Text(
+                            text = uiState.observerLocation?.maidenheadGrid() ?: "----",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = CyanPrimary,
+                        )
+                        Spacer(Modifier.width(16.dp))
                     }
                 },
             )
@@ -243,7 +265,6 @@ fun PassListScreen(
                     .fillMaxSize()
                     .background(spaceGradient()),
             ) {
-                StarField()
                 val selectedPass = uiState.selectedPass
                 if (selectedPass != null) {
                     PassDetail(
@@ -621,67 +642,170 @@ private fun PassDetail(
                 currentTime = currentTime,
             )
         }
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, SpaceBorder, MaterialTheme.shapes.medium),
-                colors = CardDefaults.cardColors(
-                    containerColor = SpaceSurface.copy(alpha = 0.9f),
-                ),
-                shape = MaterialTheme.shapes.medium,
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            text = pass.satellite.name,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = pass.satellite.modes.joinToString { it.label },
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = accent,
-                        )
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                        DetailMetric("AOS", timeFormatter.format(pass.aos))
-                        DetailMetric("Max", "${pass.maxElevationDegrees.roundToInt()} deg")
-                        DetailMetric("LOS", timeFormatter.format(pass.los))
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                        DetailMetric("Duration", formatDuration(pass.aos, pass.los))
-                        DetailMetric("AOS az", formatAzimuth(pass.aosAzimuthDegrees))
-                        DetailMetric("LOS az", formatAzimuth(pass.losAzimuthDegrees))
-                    }
-                }
-            }
-        }
+        item { PassSummaryCard(pass = pass, accent = accent, currentTime = currentTime) }
         item {
             PassTimeline(pass = pass, accent = accent, currentTime = currentTime)
         }
-        item {
-            DetailSection(
-                title = "Frequencies",
-                rows = listOf(
-                    "Uplink" to pass.satellite.uplink,
-                    "Downlink" to pass.satellite.downlink,
-                ),
-            )
-        }
+        item { FrequencyCard(pass = pass, accent = accent) }
         item {
             DetailSection(
                 title = "Operating Notes",
                 rows = listOf(
                     "Modes" to pass.satellite.modes.joinToString { it.label },
+                    "NORAD ID" to pass.satellite.noradId.toString(),
+                    "Altitude" to pass.satellite.altitudeKm?.let { "$it km" }.orEmpty(),
+                    "Launch" to pass.satellite.launchDate.orEmpty(),
+                    "Owner" to pass.satellite.owner.orEmpty(),
+                    "Website" to pass.satellite.website.orEmpty(),
                     "Notes" to pass.satellite.notes,
-                ),
+                ).filter { it.second.isNotBlank() },
             )
         }
     }
+}
+
+@Composable
+private fun PassSummaryCard(
+    pass: PassSummary,
+    accent: Color,
+    currentTime: Instant,
+) {
+    val livePoint = pass.track.positionAt(currentTime)
+    val currentAzimuth = livePoint?.azimuthDegrees ?: pass.aosAzimuthDegrees
+    val currentElevation = livePoint?.elevationDegrees ?: 0.0
+    TelemetryCard(title = "PASS SUMMARY", accent = accent) {
+        TelemetryValue("AOS", timeFormatter.format(pass.aos), "${formatAzimuth(pass.aosAzimuthDegrees)}")
+        TelemetryDivider()
+        TelemetryValue(
+            "MAX ELEVATION",
+            "${pass.maxElevationDegrees.roundToInt()} deg",
+            timeFormatter.format(pass.aos.plusSeconds(Duration.between(pass.aos, pass.los).seconds / 2)),
+        )
+        TelemetryDivider()
+        TelemetryValue("LOS", timeFormatter.format(pass.los), "${formatAzimuth(pass.losAzimuthDegrees)}")
+        TelemetryDivider()
+        TelemetryValue(
+            "CURRENT",
+            "${currentElevation.roundToInt()} deg",
+            "${formatAzimuth(currentAzimuth)}",
+        )
+    }
+}
+
+@Composable
+private fun FrequencyCard(pass: PassSummary, accent: Color) {
+    val (uplinkFrequency, uplinkTone) = splitFrequencyTone(pass.satellite.uplink)
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, SpaceBorder, MaterialTheme.shapes.medium),
+        colors = CardDefaults.cardColors(containerColor = SpaceSurface.copy(alpha = 0.9f)),
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                "FREQUENCIES & OPERATING INFO",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = CyanPrimary,
+            )
+            FrequencyValue(
+                label = "MODE",
+                value = pass.satellite.modes.joinToString { it.label },
+                color = accent,
+            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                FrequencyValue(
+                    label = "UPLINK (TX)",
+                    value = uplinkFrequency,
+                    detail = uplinkTone,
+                    modifier = Modifier.weight(1f),
+                    color = OrbitBlue,
+                )
+                FrequencyValue(
+                    label = "DOWNLINK (RX)",
+                    value = pass.satellite.downlink,
+                    modifier = Modifier.weight(1f),
+                    color = CyanSecondary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FrequencyValue(
+    label: String,
+    value: String,
+    detail: String = "",
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.onSurface,
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+        Text(value, style = MaterialTheme.typography.bodyLarge, color = color, fontWeight = FontWeight.Medium)
+        if (detail.isNotBlank()) {
+            Text(detail, style = MaterialTheme.typography.labelLarge, color = SignalGreen, fontWeight = FontWeight.Medium)
+        }
+    }
+}
+
+private fun splitFrequencyTone(value: String): Pair<String, String> {
+    val parts = value.split(",", limit = 2)
+    if (parts.size < 2 || !parts[1].contains("tone", ignoreCase = true)) {
+        return value to ""
+    }
+    return parts[0].trim() to parts[1].trim()
+}
+
+@Composable
+private fun TelemetryCard(
+    title: String,
+    accent: Color,
+    content: @Composable RowScope.() -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, SpaceBorder, MaterialTheme.shapes.medium),
+        colors = CardDefaults.cardColors(containerColor = SpaceSurface.copy(alpha = 0.9f)),
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = CyanPrimary,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+                content = content,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RowScope.TelemetryValue(label: String, value: String, detail: String) {
+    Column(
+        modifier = Modifier.weight(1f),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = TextSecondary, textAlign = TextAlign.Center)
+        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
+        if (detail.isNotBlank()) {
+            Text(detail, style = MaterialTheme.typography.labelMedium, color = CyanSecondary, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+@Composable
+private fun TelemetryDivider() {
+    Box(modifier = Modifier.height(58.dp).width(1.dp).background(SpaceBorder))
 }
 
 @Composable
@@ -828,7 +952,7 @@ private fun OrbitPreviewCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(1.05f)
+            .aspectRatio(0.98f)
             .border(1.dp, SpaceBorder, MaterialTheme.shapes.medium),
         colors = CardDefaults.cardColors(containerColor = SpaceSurfaceHigh.copy(alpha = 0.82f)),
         shape = MaterialTheme.shapes.medium,
@@ -845,11 +969,42 @@ private fun OrbitPreviewCard(
                 (1.0 - (currentElevation / 90.0).coerceIn(0.0, 1.0)).toFloat()
             val iconCenterX = radarCenterX + currentRadius * kotlin.math.sin(relativeAzimuthRadians).toFloat()
             val iconCenterY = radarCenterY - currentRadius * kotlin.math.cos(relativeAzimuthRadians).toFloat()
-            val iconSize = 30.dp
+            val iconSize = 36.dp
             StarField(modifier = Modifier.matchParentSize(), alpha = 0.8f)
+            ConstellationField(modifier = Modifier.matchParentSize())
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val center = Offset(size.width / 2f, size.height / 2f)
                 val radius = size.minDimension * 0.39f
+                val heading = headingDegrees?.toDouble() ?: 0.0
+                for (azimuth in 0 until 360 step 5) {
+                    val tickRadians = Math.toRadians(azimuth.toDouble() - heading)
+                    val innerRadius = when {
+                        azimuth % 30 == 0 -> radius * 0.93f
+                        azimuth % 10 == 0 -> radius * 0.96f
+                        else -> radius * 0.985f
+                    }
+                    val outerRadius = radius * 1.04f
+                    drawLine(
+                        color = when {
+                            azimuth % 30 == 0 -> CyanSecondary.copy(alpha = 0.7f)
+                            azimuth % 10 == 0 -> SpaceBorder.copy(alpha = 0.9f)
+                            else -> SpaceBorder.copy(alpha = 0.55f)
+                        },
+                        start = Offset(
+                            center.x + innerRadius * kotlin.math.sin(tickRadians).toFloat(),
+                            center.y - innerRadius * kotlin.math.cos(tickRadians).toFloat(),
+                        ),
+                        end = Offset(
+                            center.x + outerRadius * kotlin.math.sin(tickRadians).toFloat(),
+                            center.y - outerRadius * kotlin.math.cos(tickRadians).toFloat(),
+                        ),
+                        strokeWidth = when {
+                            azimuth % 30 == 0 -> 2.dp.toPx()
+                            azimuth % 10 == 0 -> 1.5.dp.toPx()
+                            else -> 0.75.dp.toPx()
+                        },
+                    )
+                }
                 drawCircle(
                     color = OrbitBlue.copy(alpha = 0.52f),
                     radius = radius,
@@ -868,7 +1023,6 @@ private fun OrbitPreviewCard(
                     center = center,
                     style = Stroke(width = 1.dp.toPx()),
                 )
-                val heading = headingDegrees?.toDouble() ?: 0.0
                 fun skyPoint(elevationDegrees: Double, azimuthDegrees: Double): Offset {
                     val trackRadius = radius *
                         (1.0 - (elevationDegrees / 90.0).coerceIn(0.0, 1.0)).toFloat()
@@ -932,24 +1086,17 @@ private fun OrbitPreviewCard(
             SatelliteAvatar(
                 pass = pass,
                 accent = accent,
-                sizeDp = 30,
+                sizeDp = 36,
                 modifier = Modifier.offset(
                     x = iconCenterX - iconSize / 2f,
                     y = iconCenterY - iconSize / 2f,
                 ),
             )
-            Column(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(18.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text("HEADING", color = CyanSecondary, style = MaterialTheme.typography.labelLarge)
-                Text(
-                    text = headingDegrees?.let { "$it deg" } ?: "Unavailable",
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+            val compassHeading = headingDegrees?.toDouble() ?: 0.0
+            CompassLabel("N", 0.0, compassHeading, radarRadius * 1.06f)
+            CompassLabel("E", 90.0, compassHeading, radarRadius * 1.06f)
+            CompassLabel("S", 180.0, compassHeading, radarRadius * 1.06f)
+            CompassLabel("W", 270.0, compassHeading, radarRadius * 1.06f)
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -964,8 +1111,13 @@ private fun OrbitPreviewCard(
                     .padding(18.dp),
                 horizontalAlignment = Alignment.End,
             ) {
-                Text("LOS", color = TextSecondary, style = MaterialTheme.typography.labelLarge)
+                Text("NEXT LOS", color = TextSecondary, style = MaterialTheme.typography.labelLarge)
                 Text(timeFormatter.format(pass.los), fontWeight = FontWeight.Bold)
+                Text(
+                    formatCountdown(Duration.between(currentTime, pass.los)),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TextSecondary,
+                )
             }
             val passState = passStateLabel(pass, currentTime)
             Column(
@@ -985,7 +1137,7 @@ private fun OrbitPreviewCard(
                 )
             }
             StatusPill(
-                text = "${pass.maxElevationDegrees.roundToInt()} deg max",
+                text = passStatusLabel(pass, currentTime),
                 accent = accent,
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -1007,6 +1159,29 @@ private fun DetailMetric(label: String, value: String) {
             text = value,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Medium,
+        )
+    }
+}
+
+@Composable
+private fun CompassLabel(
+    label: String,
+    azimuthDegrees: Double,
+    headingDegrees: Double,
+    radius: androidx.compose.ui.unit.Dp,
+) {
+    val radians = Math.toRadians(azimuthDegrees - headingDegrees)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Text(
+            text = label,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .offset(
+                    x = (radius.value * kotlin.math.sin(radians)).dp,
+                    y = (-radius.value * kotlin.math.cos(radians)).dp,
+                ),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
         )
     }
 }
@@ -1071,11 +1246,29 @@ private fun SatelliteAvatar(
             .border(1.dp, accent.copy(alpha = 0.75f), CircleShape),
         contentAlignment = Alignment.Center,
     ) {
+        Canvas(modifier = Modifier.matchParentSize()) {
+            drawCircle(
+                color = accent.copy(alpha = 0.16f),
+                radius = size.minDimension * 0.37f,
+                style = Stroke(width = 1.dp.toPx()),
+            )
+            drawArc(
+                color = accent.copy(alpha = 0.42f),
+                startAngle = 22f,
+                sweepAngle = 180f,
+                useCenter = false,
+                topLeft = Offset(size.width * 0.08f, size.height * 0.08f),
+                size = Size(size.width * 0.84f, size.height * 0.84f),
+                style = Stroke(width = 1.dp.toPx()),
+            )
+        }
         Image(
             painter = painterResource(id = satelliteArtwork(pass)),
             contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(5.dp),
+            contentScale = ContentScale.Fit,
         )
     }
 }
@@ -1130,21 +1323,51 @@ private fun StarField(
 ) {
     Canvas(modifier = modifier) {
         val stars = listOf(
-            Offset(0.09f, 0.18f),
-            Offset(0.18f, 0.72f),
-            Offset(0.28f, 0.31f),
-            Offset(0.39f, 0.83f),
-            Offset(0.55f, 0.16f),
-            Offset(0.66f, 0.57f),
-            Offset(0.78f, 0.26f),
-            Offset(0.88f, 0.68f),
-            Offset(0.95f, 0.42f),
+            Offset(0.04f, 0.12f), Offset(0.09f, 0.61f), Offset(0.14f, 0.29f),
+            Offset(0.19f, 0.84f), Offset(0.25f, 0.17f), Offset(0.28f, 0.48f),
+            Offset(0.34f, 0.72f), Offset(0.39f, 0.31f), Offset(0.44f, 0.9f),
+            Offset(0.49f, 0.11f), Offset(0.53f, 0.58f), Offset(0.58f, 0.27f),
+            Offset(0.63f, 0.78f), Offset(0.68f, 0.42f), Offset(0.73f, 0.08f),
+            Offset(0.77f, 0.64f), Offset(0.82f, 0.23f), Offset(0.87f, 0.87f),
+            Offset(0.92f, 0.51f), Offset(0.97f, 0.18f), Offset(0.11f, 0.95f),
+            Offset(0.31f, 0.05f), Offset(0.57f, 0.96f), Offset(0.91f, 0.75f),
         )
         stars.forEachIndexed { index, star ->
             drawCircle(
-                color = CyanSecondary.copy(alpha = alpha * if (index % 3 == 0) 0.85f else 0.45f),
-                radius = if (index % 3 == 0) 2.1.dp.toPx() else 1.2.dp.toPx(),
+                color = CyanSecondary.copy(alpha = alpha * if (index % 4 == 0) 0.9f else 0.45f),
+                radius = if (index % 4 == 0) 2.3.dp.toPx() else 1.2.dp.toPx(),
                 center = Offset(size.width * star.x, size.height * star.y),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ConstellationField(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val points = listOf(
+            Offset(0.34f, 0.37f), Offset(0.39f, 0.32f), Offset(0.45f, 0.37f), Offset(0.49f, 0.30f),
+            Offset(0.58f, 0.60f), Offset(0.63f, 0.55f), Offset(0.69f, 0.60f), Offset(0.72f, 0.52f),
+            Offset(0.35f, 0.63f), Offset(0.40f, 0.69f), Offset(0.46f, 0.65f), Offset(0.50f, 0.73f),
+        )
+        val links = listOf(
+            0 to 1, 1 to 2, 2 to 3,
+            4 to 5, 5 to 6, 6 to 7,
+            8 to 9, 9 to 10, 10 to 11,
+        )
+        links.forEach { (from, to) ->
+            drawLine(
+                color = TextSecondary.copy(alpha = 0.16f),
+                start = Offset(size.width * points[from].x, size.height * points[from].y),
+                end = Offset(size.width * points[to].x, size.height * points[to].y),
+                strokeWidth = 0.7.dp.toPx(),
+            )
+        }
+        points.forEachIndexed { index, point ->
+            drawCircle(
+                color = if (index % 4 == 0) TextPrimary.copy(alpha = 0.42f) else CyanSecondary.copy(alpha = 0.28f),
+                radius = if (index % 4 == 0) 1.4.dp.toPx() else 0.8.dp.toPx(),
+                center = Offset(size.width * point.x, size.height * point.y),
             )
         }
     }
@@ -1510,6 +1733,12 @@ private fun compassPoint(degrees: Double): String {
 private fun passDirection(pass: PassSummary): String =
     "${compassPoint(pass.aosAzimuthDegrees)} -> ${compassPoint(pass.losAzimuthDegrees)}"
 
+private fun passStatusLabel(pass: PassSummary, currentTime: Instant): String = when {
+    currentTime.isBefore(pass.aos) -> "UPCOMING"
+    currentTime.isBefore(pass.los) -> "ACTIVE"
+    else -> "COMPLETE"
+}
+
 private fun passAccent(pass: PassSummary): Color = when {
     pass.satellite.modes.any { it == OperatingMode.FmVoice } && pass.maxElevationDegrees >= 70.0 -> SignalGreen
     pass.satellite.modes.any { it == OperatingMode.SsbCw } -> OrbitOrange
@@ -1528,10 +1757,10 @@ private fun modeAccent(mode: OperatingMode): Color = when (mode) {
 }
 
 private fun satelliteArtwork(pass: PassSummary): Int = when {
-    pass.satellite.name.contains("ISS", ignoreCase = true) -> R.drawable.satellite_iss
-    pass.satellite.modes.any { it == OperatingMode.SsbCw } -> R.drawable.satellite_cubesat
-    pass.satellite.name.contains("RS", ignoreCase = true) -> R.drawable.satellite_cubesat
-    else -> R.drawable.satellite_sat
+    pass.satellite.name.contains("ISS", ignoreCase = true) -> R.drawable.tb_iss
+    pass.satellite.modes.any { it == OperatingMode.SsbCw } -> R.drawable.tb_cubesat
+    pass.satellite.name.contains("RS", ignoreCase = true) -> R.drawable.tb_cubesat
+    else -> R.drawable.tb_sat
 }
 
 private fun formatAzimuth(degrees: Double): String =

@@ -27,7 +27,12 @@ SatQSO is an Android satellite-pass planner for amateur radio operators. It calc
 
 The home screen shows only future passes in the selected rolling window. Each pass includes its local start time, live countdown, maximum elevation, and direction.
 
-[![SatQSO upcoming pass list](docs/screenshots/home-thumb.png)](docs/screenshots/home.png)
+<table>
+  <tr>
+    <td><a href="docs/screenshots/home.png"><img src="docs/screenshots/home-thumb.png" alt="SatQSO upcoming pass list"></a></td>
+    <td><a href="docs/screenshots/home-lower.png"><img src="docs/screenshots/home-lower-thumb.png" alt="SatQSO additional upcoming passes"></a></td>
+  </tr>
+</table>
 
 ### Look-ahead filters
 
@@ -42,9 +47,16 @@ Pass details include a compass-oriented sky path, live satellite position, headi
 <table>
   <tr>
     <td><a href="docs/screenshots/pass-detail.png"><img src="docs/screenshots/pass-detail-thumb.png" alt="SatQSO pass tracking detail"></a></td>
-    <td><a href="docs/screenshots/timeline.png"><img src="docs/screenshots/timeline-thumb.png" alt="SatQSO pass timeline"></a></td>
+    <td><a href="docs/screenshots/pass-detail-lower.png"><img src="docs/screenshots/pass-detail-lower-thumb.png" alt="SatQSO pass timeline and radio information"></a></td>
+    <td><a href="docs/screenshots/pass-detail-bottom.png"><img src="docs/screenshots/pass-detail-bottom-thumb.png" alt="SatQSO operating notes"></a></td>
   </tr>
 </table>
+
+The screenshots use ImageMagick-redacted location fields for privacy. Click any thumbnail to view the full-size capture.
+
+## Releases
+
+The latest release APK is available from the [SatQSO releases](https://github.com/linuxx/SatQSO/releases) page.
 
 ## Requirements
 

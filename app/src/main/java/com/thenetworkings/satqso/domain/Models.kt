@@ -18,6 +18,10 @@ data class Satellite(
     val uplink: String,
     val downlink: String,
     val notes: String,
+    val altitudeKm: Int? = null,
+    val launchDate: String? = null,
+    val owner: String? = null,
+    val website: String? = null,
 )
 
 data class Tle(

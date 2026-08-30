@@ -31,6 +31,9 @@
 - [x] Add a fallback location entry path for emulators and devices without a recent fused location fix.
 - [x] Add an interactive map location picker with tap-to-place and Reset to GPS.
 - [x] Indicate when the active observer location is a modified map pin.
+- [x] Refresh pass details with a rotating compass radar, live readout, and compact telemetry panels.
+- [x] Add fine compass sub-ticks and enlarge the detail-title Maidenhead grid.
+- [x] Add subtle clustered constellation detail inside the radar and remove redundant compass heading text.
 - [x] Add user-selectable minimum elevation cutoff.
 - [x] Persist the last successful TLE set locally so pass calculation works completely offline after first launch.
 - [x] Show only upcoming passes in a rolling window with configurable look-ahead and start countdowns.
