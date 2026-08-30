@@ -52,6 +52,7 @@ As of 2026-08-30:
 - Project has a working pass-planning app under package `com.thenetworkings.satqso`.
 - The app supports GPS or manually entered coordinates, current local time display, cached TLEs, scheduled refresh, pass filters, and pass details.
 - Location selection supports GPS, decimal entry, and an embedded OpenStreetMap picker with a tap-to-place pin and GPS reset.
+- The location summary uses an amber `GPS • MODIFIED` label and coordinate value when a map pin overrides live GPS.
 - Build uses AGP 9.3.2, Kotlin Compose plugin 2.2.10, compile SDK 37, target SDK 37, min SDK 24.
 - Build verified with `.\gradlew.bat :app:assembleDebug`.
 - Release builds use R8/resource shrinking and a local, ignored keystore configuration from `keystore.properties`.

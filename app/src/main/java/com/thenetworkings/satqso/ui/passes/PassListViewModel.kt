@@ -26,6 +26,7 @@ data class PassListUiState(
     val passes: List<PassSummary> = emptyList(),
     val selectedPass: PassSummary? = null,
     val observerLocation: ObserverLocation? = null,
+    val isManualLocation: Boolean = false,
     val unfilteredPassCount: Int = 0,
     val minimumElevationDegrees: Int = DefaultMinimumElevationDegrees,
     val lookAheadHours: Int = DefaultLookAheadHours,
@@ -93,6 +94,7 @@ class PassListViewModel(
                     it.copy(
                         isLoading = false,
                         observerLocation = location,
+                        isManualLocation = locationRepository.hasManualLocation(),
                         passes = passes.filterByPassFilters(
                             minimumElevationDegrees = it.minimumElevationDegrees,
                             operatingModes = it.selectedOperatingModes,

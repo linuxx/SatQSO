@@ -30,6 +30,7 @@
 - [ ] Confirm curated satellite operating metadata against current AMSAT/ARISS source material.
 - [x] Add a fallback location entry path for emulators and devices without a recent fused location fix.
 - [x] Add an interactive map location picker with tap-to-place and Reset to GPS.
+- [x] Indicate when the active observer location is a modified map pin.
 - [x] Add user-selectable minimum elevation cutoff.
 - [x] Persist the last successful TLE set locally so pass calculation works completely offline after first launch.
 - [x] Show only upcoming passes in a rolling window with configurable look-ahead and start countdowns.

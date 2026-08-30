@@ -265,6 +265,7 @@ fun PassListScreen(
                         else -> PassList(
                             passes = uiState.passes,
                             observerLocation = uiState.observerLocation,
+                            isManualLocation = uiState.isManualLocation,
                             unfilteredPassCount = uiState.unfilteredPassCount,
                             lookAheadHours = uiState.lookAheadHours,
                             onPassSelected = onPassSelected,
@@ -309,6 +310,7 @@ fun PassListScreen(
 private fun PassList(
     passes: List<PassSummary>,
     observerLocation: ObserverLocation?,
+    isManualLocation: Boolean,
     unfilteredPassCount: Int,
     lookAheadHours: Int,
     onPassSelected: (PassSummary) -> Unit,
@@ -330,6 +332,7 @@ private fun PassList(
         item {
             LocationSummaryCard(
                 observerLocation = observerLocation,
+                isManualLocation = isManualLocation,
                 onClick = onLocationClick,
             )
         }
@@ -463,6 +466,7 @@ private fun PassCard(
 @Composable
 private fun LocationSummaryCard(
     observerLocation: ObserverLocation?,
+    isManualLocation: Boolean,
     onClick: () -> Unit,
 ) {
     var currentTime by remember { mutableStateOf(Instant.now()) }
@@ -491,10 +495,11 @@ private fun LocationSummaryCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 SummaryBlock(
-                    label = "GPS",
+                    label = if (isManualLocation) "GPS • MODIFIED" else "GPS",
                     value = observerLocation?.formattedCoordinates() ?: "Calculating",
                     modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.Start,
+                    color = if (isManualLocation) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurface,
                 )
                 SummaryDivider()
                 Column(
@@ -531,6 +536,7 @@ private fun SummaryBlock(
     value: String,
     modifier: Modifier = Modifier,
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
+    color: Color = MaterialTheme.colorScheme.onSurface,
 ) {
     Column(
         modifier = modifier,
@@ -540,13 +546,14 @@ private fun SummaryBlock(
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            color = CyanSecondary,
+            color = if (color == MaterialTheme.colorScheme.onSurface) CyanSecondary else color,
             fontWeight = FontWeight.SemiBold,
         )
         Text(
             text = value,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
+            color = color,
         )
     }
 }

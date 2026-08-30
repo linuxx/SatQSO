@@ -57,6 +57,8 @@ The app needs location permission for GPS-based predictions and internet access 
 
 Tap the location summary on the home screen to choose a different point on the map. Tap **Use this location** to calculate passes from the pin, or **Reset to GPS** to return to the device location.
 
+The location summary is amber and labeled `GPS • MODIFIED` whenever a saved map pin is active.
+
 ## Build
 
 From the project directory:
