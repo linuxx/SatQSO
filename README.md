@@ -46,7 +46,7 @@ Pass details include a compass-oriented sky path, live satellite position, headi
 
 <table>
   <tr>
-    <td><a href="docs/screenshots/pass-detail.png"><img src="docs/screenshots/pass-detail-thumb.png" alt="SatQSO pass tracking detail"></a></td>
+    <td><a href="docs/screenshots/pass-detail.png"><img src="docs/screenshots/pass-detail-1.2.1-thumb.png" alt="SatQSO pass tracking detail"></a></td>
     <td><a href="docs/screenshots/pass-detail-bottom.png"><img src="docs/screenshots/pass-detail-bottom-thumb.png" alt="SatQSO operating notes"></a></td>
   </tr>
 </table>
