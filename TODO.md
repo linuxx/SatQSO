@@ -31,6 +31,7 @@
 - [x] Add user-selectable minimum elevation cutoff.
 - [x] Persist the last successful TLE set locally so pass calculation works completely offline after first launch.
 - [x] Show only upcoming passes in a rolling window with configurable look-ahead and start countdowns.
+- [x] Add 24-hour, 2-day, 4-day, and 7-day look-ahead choices and keep the display awake during use.
 
 ## Later Phases
 

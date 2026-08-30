@@ -315,7 +315,7 @@ private fun PassList(
                     )
                     Text(
                         modifier = Modifier.weight(1f).padding(start = 8.dp),
-                        text = "Next $lookAheadHours hours - " +
+                        text = "Next ${lookAheadLabel(lookAheadHours)} - " +
                             passCountLabel(upcomingPasses.size, unfilteredPassCount),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1348,7 +1348,7 @@ private fun LookAheadSelector(
                 FilterChip(
                     selected = selectedLookAheadHours == hours,
                     onClick = { onSelected(hours) },
-                    label = { Text("$hours hours") },
+                    label = { Text(lookAheadLabel(hours)) },
                     colors = filterChipColors(CyanPrimary),
                 )
             }

@@ -21,6 +21,7 @@ SatQSO has a working Android prototype for planning amateur-radio satellite pass
 - Time-synchronized satellite marker that follows the sky path and timeline.
 - Live pass-state countdown showing start, end, and completion status.
 - Home screen shows only upcoming passes in a rolling time window, with selectable look-ahead and per-pass start countdowns.
+- Look-ahead options are 24 hours, 2 days, 4 days, and 7 days; the activity keeps the display awake while open.
 - Unit tests for TLE parsing, pass prediction, boundary handling, filters, and location formatting.
 
 ### Verification
