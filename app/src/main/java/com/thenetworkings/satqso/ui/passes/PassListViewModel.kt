@@ -21,6 +21,7 @@ data class PassListUiState(
     val isLoading: Boolean = false,
     val needsLocationPermission: Boolean = true,
     val showManualLocationEditor: Boolean = false,
+    val showMapLocationPicker: Boolean = false,
     val showFilters: Boolean = false,
     val passes: List<PassSummary> = emptyList(),
     val selectedPass: PassSummary? = null,
@@ -173,6 +174,25 @@ class PassListViewModel(
 
     fun dismissManualLocationEditor() {
         _uiState.update { it.copy(showManualLocationEditor = false) }
+    }
+
+    fun showMapLocationPicker() {
+        _uiState.update { it.copy(showMapLocationPicker = true) }
+    }
+
+    fun dismissMapLocationPicker() {
+        _uiState.update { it.copy(showMapLocationPicker = false) }
+    }
+
+    fun saveMapLocation(location: ObserverLocation) {
+        locationRepository.saveManualLocation(location)
+        dismissMapLocationPicker()
+        refresh()
+    }
+
+    fun resetToGpsLocation() {
+        locationRepository.clearManualLocation()
+        refresh()
     }
 
     fun saveManualLocation(latitudeText: String, longitudeText: String, altitudeText: String): String? {

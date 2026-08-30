@@ -149,6 +149,10 @@ private class FakeLocationDataSource(
         savedLocation = location
     }
 
+    override fun clearManualLocation() {
+        savedLocation = null
+    }
+
     override suspend fun currentLocation() = savedLocation ?: ObserverLocation(35.0, -85.0, 200.0)
 }
 

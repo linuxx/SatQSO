@@ -15,6 +15,7 @@ interface LocationDataSource {
     fun hasLocationPermission(): Boolean
     fun hasManualLocation(): Boolean
     fun saveManualLocation(location: ObserverLocation)
+    fun clearManualLocation()
     suspend fun currentLocation(): ObserverLocation
 }
 
@@ -39,10 +40,20 @@ class LocationRepository(
             .apply()
     }
 
+    override fun clearManualLocation() {
+        preferences.edit()
+            .remove(LATITUDE_KEY)
+            .remove(LONGITUDE_KEY)
+            .remove(ALTITUDE_KEY)
+            .apply()
+    }
+
     @SuppressLint("MissingPermission")
     override suspend fun currentLocation(): ObserverLocation {
+        manualLocation()?.let { return it }
+
         if (!hasLocationPermission()) {
-            return manualLocation() ?: error("Location permission has not been granted.")
+            error("Location permission has not been granted.")
         }
 
         val location = runCatching {

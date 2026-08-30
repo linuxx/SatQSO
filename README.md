@@ -55,6 +55,8 @@ Pass details include a compass-oriented sky path, live satellite position, headi
 
 The app needs location permission for GPS-based predictions and internet access to download current TLE data. Manual coordinates and cached TLEs allow it to remain useful without either service.
 
+Tap the location summary on the home screen to choose a different point on the map. Tap **Use this location** to calculate passes from the pin, or **Reset to GPS** to return to the device location.
+
 ## Build
 
 From the project directory:

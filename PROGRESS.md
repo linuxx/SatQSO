@@ -8,6 +8,7 @@ SatQSO has a working Android prototype for planning amateur-radio satellite pass
 
 - Jetpack Compose pass list and pass detail screens.
 - GPS location with manual latitude, longitude, and altitude fallback.
+- Interactive OpenStreetMap location picker with tap-to-place, saved observer location, and Reset to GPS.
 - Curated amateur-radio satellite catalog.
 - Orekit-based local pass prediction from TLE data.
 - Interpolated AOS/LOS boundaries rather than raw 60-second sample boundaries.
@@ -33,6 +34,7 @@ SatQSO has a working Android prototype for planning amateur-radio satellite pass
 - Release verification completed with `testDebugUnitTest`, `assembleDebug`, and `assembleRelease`.
 - Manual phone smoke test passes for launch, GPS display, both Maidenhead formats, filters, and pass details.
 - Manual location-entry and offline-network paths still need runtime verification.
+- Release APK installed and launched successfully on the connected Pixel device.
 
 ### Remaining Work
 

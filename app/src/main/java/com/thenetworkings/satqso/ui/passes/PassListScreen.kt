@@ -1,6 +1,11 @@
 package com.thenetworkings.satqso.ui.passes
 
 import android.Manifest
+import android.os.Handler
+import android.os.Looper
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -62,6 +67,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -137,6 +143,10 @@ fun PassListRoute(dependencies: SatQsoDependencies) {
         onManualLocation = viewModel::showManualLocationEditor,
         onDismissManualLocation = viewModel::dismissManualLocationEditor,
         onSaveManualLocation = viewModel::saveManualLocation,
+        onLocationClick = { viewModel.showMapLocationPicker() },
+        onDismissMapLocation = viewModel::dismissMapLocationPicker,
+        onSaveMapLocation = viewModel::saveMapLocation,
+        onResetLocation = viewModel::resetToGpsLocation,
         onShowFilters = viewModel::showFilters,
         onDismissFilters = viewModel::dismissFilters,
         onMinimumElevationSelected = viewModel::setMinimumElevationDegrees,
@@ -157,6 +167,10 @@ fun PassListScreen(
     onManualLocation: () -> Unit,
     onDismissManualLocation: () -> Unit,
     onSaveManualLocation: (String, String, String) -> String?,
+    onLocationClick: () -> Unit = {},
+    onDismissMapLocation: () -> Unit = {},
+    onSaveMapLocation: (ObserverLocation) -> Unit = {},
+    onResetLocation: () -> Unit = {},
     onShowFilters: () -> Unit,
     onDismissFilters: () -> Unit,
     onMinimumElevationSelected: (Int) -> Unit,
@@ -251,6 +265,7 @@ fun PassListScreen(
                             unfilteredPassCount = uiState.unfilteredPassCount,
                             lookAheadHours = uiState.lookAheadHours,
                             onPassSelected = onPassSelected,
+                            onLocationClick = onLocationClick,
                         )
                     }
                 }
@@ -258,6 +273,17 @@ fun PassListScreen(
                     ManualLocationDialog(
                         onDismiss = onDismissManualLocation,
                         onSave = onSaveManualLocation,
+                    )
+                }
+                if (uiState.showMapLocationPicker && uiState.observerLocation != null) {
+                    MapLocationDialog(
+                        initialLocation = uiState.observerLocation,
+                        onDismiss = onDismissMapLocation,
+                        onSave = onSaveMapLocation,
+                        onReset = {
+                            onResetLocation()
+                            onDismissMapLocation()
+                        },
                     )
                 }
                 if (uiState.showFilters) {
@@ -283,6 +309,7 @@ private fun PassList(
     unfilteredPassCount: Int,
     lookAheadHours: Int,
     onPassSelected: (PassSummary) -> Unit,
+    onLocationClick: () -> Unit,
 ) {
     var currentTime by remember { mutableStateOf(Instant.now()) }
     LaunchedEffect(Unit) {
@@ -298,7 +325,10 @@ private fun PassList(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            LocationSummaryCard(observerLocation = observerLocation)
+            LocationSummaryCard(
+                observerLocation = observerLocation,
+                onClick = onLocationClick,
+            )
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -428,7 +458,10 @@ private fun PassCard(
 }
 
 @Composable
-private fun LocationSummaryCard(observerLocation: ObserverLocation?) {
+private fun LocationSummaryCard(
+    observerLocation: ObserverLocation?,
+    onClick: () -> Unit,
+) {
     var currentTime by remember { mutableStateOf(Instant.now()) }
 
     LaunchedEffect(Unit) {
@@ -441,6 +474,7 @@ private fun LocationSummaryCard(observerLocation: ObserverLocation?) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(enabled = observerLocation != null, onClick = onClick)
             .border(1.dp, SpaceBorder, MaterialTheme.shapes.medium),
         colors = CardDefaults.cardColors(
             containerColor = SpaceSurfaceHigh.copy(alpha = 0.72f),
@@ -1549,6 +1583,127 @@ private fun formatCountdown(duration: Duration): String {
         "%02d:%02d".format(minutes, remainingSeconds)
     }
 }
+
+@Composable
+private fun MapLocationDialog(
+    initialLocation: ObserverLocation,
+    onDismiss: () -> Unit,
+    onSave: (ObserverLocation) -> Unit,
+    onReset: () -> Unit,
+) {
+    var selectedLocation by remember(initialLocation) { mutableStateOf(initialLocation) }
+    var mapView by remember { mutableStateOf<WebView?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Choose location") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Tap the map to move the pin.")
+                AndroidView(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(360.dp),
+                    factory = { context ->
+                        WebView(context).apply {
+                            mapView = this
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+                            webViewClient = WebViewClient()
+                            addJavascriptInterface(
+                                MapPickerBridge { latitude, longitude ->
+                                    Handler(Looper.getMainLooper()).post {
+                                        selectedLocation = ObserverLocation(
+                                            latitudeDegrees = latitude,
+                                            longitudeDegrees = longitude,
+                                            altitudeMeters = selectedLocation.altitudeMeters,
+                                        )
+                                    }
+                                },
+                                "SatQso",
+                            )
+                            loadDataWithBaseURL(
+                                "https://satqso.local/",
+                                mapHtml(selectedLocation),
+                                "text/html",
+                                "UTF-8",
+                                null,
+                            )
+                        }
+                    },
+                    update = { webView ->
+                        webView.evaluateJavascript(
+                            "setPin(${selectedLocation.latitudeDegrees},${selectedLocation.longitudeDegrees});",
+                            null,
+                        )
+                    },
+                )
+                Text(
+                    text = "${selectedLocation.latitudeDegrees.formatMapCoordinate()}, " +
+                        selectedLocation.longitudeDegrees.formatMapCoordinate(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(selectedLocation) }) {
+                Text("Use this location")
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(onClick = onReset) { Text("Reset to GPS") }
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+            }
+        },
+    )
+
+    DisposableEffect(mapView) {
+        onDispose { mapView?.destroy() }
+    }
+}
+
+private class MapPickerBridge(
+    private val onLocationSelected: (Double, Double) -> Unit,
+) {
+    @JavascriptInterface
+    fun onMapClick(latitude: Double, longitude: Double) {
+        onLocationSelected(latitude, longitude)
+    }
+}
+
+private fun mapHtml(location: ObserverLocation): String = """
+    <!doctype html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+      <style>html,body,#map{height:100%;margin:0;background:#101820} .leaflet-control-attribution{font-size:9px}</style>
+    </head>
+    <body>
+      <div id="map"></div>
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+      <script>
+        const map = L.map('map').setView([${location.latitudeDegrees}, ${location.longitudeDegrees}], 11);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        let marker = L.marker([${location.latitudeDegrees}, ${location.longitudeDegrees}]).addTo(map);
+        function setPin(lat, lng) {
+          if (!marker) marker = L.marker([lat, lng]).addTo(map);
+          marker.setLatLng([lat, lng]);
+        }
+        map.on('click', function(event) {
+          setPin(event.latlng.lat, event.latlng.lng);
+          if (window.SatQso) window.SatQso.onMapClick(event.latlng.lat, event.latlng.lng);
+        });
+      </script>
+    </body>
+    </html>
+""".trimIndent()
+
+private fun Double.formatMapCoordinate(): String = "%.5f".format(this)
 
 private fun formatStartCountdown(currentTime: Instant, start: Instant): String {
     val seconds = Duration.between(currentTime, start).seconds.coerceAtLeast(0L)
