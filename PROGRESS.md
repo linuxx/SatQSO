@@ -1,40 +1,39 @@
 # SatQSO Progress
 
-## 2026-08-25
+## Current State: 2026-08-30
 
-### Completed
+SatQSO has a working Android prototype for planning amateur-radio satellite passes.
 
-- Inspected the initial Android project.
-- Confirmed the app is currently a stock Jetpack Compose scaffold.
-- Verified `.\gradlew.bat :app:assembleDebug` succeeds.
-- Added project memory files to guide future AI sessions.
-- Initialized Git and committed the baseline project/docs.
-- Added first-slice dependencies: lifecycle ViewModel/Compose state, coroutines, Google Play Services location, OkHttp, and Orekit.
-- Added foreground location permission and internet permission.
-- Added domain models for operating modes, satellites, TLEs, observer location, and pass summaries.
-- Added a curated starter satellite catalog.
-- Added CelesTrak TLE fetching/parsing for `amateur` and `stations` groups.
-- Added Orekit-backed local pass prediction behind the `PassPredictor` interface.
-- Added minimal Orekit data initialization with packaged `orekit-data/tai-utc.dat`.
-- Replaced the starter screen with a Material 3 Compose pass list with permission, loading, error, empty, and populated states.
-- Added unit tests for TLE parsing and Orekit pass prediction smoke coverage.
+### Implemented
 
-### Build Notes
+- Jetpack Compose pass list and pass detail screens.
+- GPS location with manual latitude, longitude, and altitude fallback.
+- Curated amateur-radio satellite catalog.
+- Orekit-based local pass prediction from TLE data.
+- Interpolated AOS/LOS boundaries rather than raw 60-second sample boundaries.
+- AMSAT and CelesTrak TLE retrieval with resilient source fallback.
+- Twelve-hour TLE cache and offline use of the last successful dataset.
+- WorkManager background TLE refresh.
+- Minimum-elevation and operating-mode filters.
+- Unit tests for TLE parsing, pass prediction, boundary handling, filters, and location formatting.
 
-- First build attempt timed out after 2 minutes while Gradle/java processes continued resolving and building.
-- A second `.\gradlew.bat :app:assembleDebug` run completed successfully in 15 seconds using cached work.
-- Dependency build after adding Orekit and Android support libraries completed successfully.
+### Verification
+
 - `.\gradlew.bat :app:testDebugUnitTest` passes.
 - `.\gradlew.bat :app:assembleDebug` passes.
-- CelesTrak was observed timing out on 2026-08-25 at `104.168.149.178:443`; AMSAT `nasabare.txt` was reachable and added as a fallback source.
+- Debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.
+- Runtime behavior on a physical device or emulator has not yet been manually verified.
 
-### Current State
+### Remaining Work
 
-- The app can request location, fetch TLEs, calculate today's visible passes locally, and display a pass list.
-- TLE fetch now tries AMSAT and CelesTrak independently, using whichever configured source responds.
-- Pass prediction currently samples at 60-second intervals. AOS/LOS times are useful for the first slice but should be refined before relying on them for operating-critical timing.
-- Runtime behavior on an Android device/emulator still needs manual or instrumentation verification.
+- Verify runtime permission flow, location behavior, network fallback, cache loading, and Orekit resource loading on Android.
+- Confirm curated satellite operating metadata against current AMSAT/ARISS sources.
+- Add Room persistence if the data model grows beyond the current cache.
+- Add azimuth/elevation timeline and sky-path visualization.
+- Add compass/device orientation integration.
+- Add real-time Doppler-corrected uplink/downlink frequencies.
+- Add user settings for location source, preferred satellites, time format, and band/mode preferences.
 
-### Next Step
+### Development Note
 
-Commit the Phase 1 slice, then harden runtime behavior and pass accuracy.
+Keep `README.md` user-facing, `PROJECT.md` architectural, `TODO.md` task-oriented, and this file focused on shipped functionality, verification, and the next priorities.

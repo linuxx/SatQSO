@@ -17,6 +17,17 @@ class LocationFormattersTest {
     }
 
     @Test
+    fun calculatesFourCharacterMaidenheadGrid() {
+        val location = ObserverLocation(
+            latitudeDegrees = 35.0456,
+            longitudeDegrees = -85.3097,
+            altitudeMeters = 0.0,
+        )
+
+        assertEquals("EM75", location.maidenheadGrid())
+    }
+
+    @Test
     fun formatsCoordinatesWithHemisphereSuffixes() {
         val location = ObserverLocation(
             latitudeDegrees = 35.5,

@@ -4,11 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.thenetworkings.satqso.data.PassDisplayPreferences
-import com.thenetworkings.satqso.data.SatellitePassRepository
+import com.thenetworkings.satqso.data.PassDataSource
 import com.thenetworkings.satqso.domain.ObserverLocation
 import com.thenetworkings.satqso.domain.OperatingMode
 import com.thenetworkings.satqso.domain.PassSummary
-import com.thenetworkings.satqso.location.LocationRepository
+import com.thenetworkings.satqso.location.LocationDataSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,8 +30,8 @@ data class PassListUiState(
 )
 
 class PassListViewModel(
-    private val locationRepository: LocationRepository,
-    private val passRepository: SatellitePassRepository,
+    private val locationRepository: LocationDataSource,
+    private val passRepository: PassDataSource,
     private val passDisplayPreferences: PassDisplayPreferences,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(PassListUiState())
@@ -182,8 +182,8 @@ class PassListViewModel(
     }
 
     class Factory(
-        private val locationRepository: LocationRepository,
-        private val passRepository: SatellitePassRepository,
+        private val locationRepository: LocationDataSource,
+        private val passRepository: PassDataSource,
         private val passDisplayPreferences: PassDisplayPreferences,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")

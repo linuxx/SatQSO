@@ -11,20 +11,27 @@ import com.google.android.gms.tasks.CancellationTokenSource
 import com.thenetworkings.satqso.domain.ObserverLocation
 import kotlinx.coroutines.tasks.await
 
+interface LocationDataSource {
+    fun hasLocationPermission(): Boolean
+    fun hasManualLocation(): Boolean
+    fun saveManualLocation(location: ObserverLocation)
+    suspend fun currentLocation(): ObserverLocation
+}
+
 class LocationRepository(
     private val context: Context,
-) {
+) : LocationDataSource {
     private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
     private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
-    fun hasLocationPermission(): Boolean =
+    override fun hasLocationPermission(): Boolean =
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
-    fun hasManualLocation(): Boolean =
+    override fun hasManualLocation(): Boolean =
         preferences.contains(LATITUDE_KEY) && preferences.contains(LONGITUDE_KEY)
 
-    fun saveManualLocation(location: ObserverLocation) {
+    override fun saveManualLocation(location: ObserverLocation) {
         preferences.edit()
             .putString(LATITUDE_KEY, location.latitudeDegrees.toString())
             .putString(LONGITUDE_KEY, location.longitudeDegrees.toString())
@@ -33,7 +40,7 @@ class LocationRepository(
     }
 
     @SuppressLint("MissingPermission")
-    suspend fun currentLocation(): ObserverLocation {
+    override suspend fun currentLocation(): ObserverLocation {
         if (!hasLocationPermission()) {
             return manualLocation() ?: error("Location permission has not been granted.")
         }

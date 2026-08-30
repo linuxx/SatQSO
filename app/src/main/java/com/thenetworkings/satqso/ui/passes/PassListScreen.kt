@@ -403,18 +403,31 @@ private fun LocationSummaryCard(observerLocation: ObserverLocation?) {
                     label = "GPS",
                     value = observerLocation?.formattedCoordinates() ?: "Calculating",
                     modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.Start,
                 )
                 SummaryDivider()
-                SummaryBlock(
-                    label = "MAIDENHEAD",
-                    value = observerLocation?.maidenheadLocator() ?: "--",
+                Column(
                     modifier = Modifier.weight(1f),
-                )
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    SummaryBlock(
+                        label = "GRID",
+                        value = observerLocation?.maidenheadGrid() ?: "--",
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    )
+                    SummaryBlock(
+                        label = "SUBSQUARE",
+                        value = observerLocation?.maidenheadLocator() ?: "--",
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    )
+                }
                 SummaryDivider()
                 SummaryBlock(
                     label = "LOCAL TIME",
                     value = clockFormatter.format(currentTime),
                     modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.End,
                 )
             }
         }
@@ -426,10 +439,12 @@ private fun SummaryBlock(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
+    horizontalAlignment: Alignment.Horizontal = Alignment.Start,
 ) {
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalAlignment = horizontalAlignment,
+        verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         Text(
             text = label,

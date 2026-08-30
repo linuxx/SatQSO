@@ -18,7 +18,7 @@ Keep the app split into testable layers:
 
 Domain code should be usable from unit tests without Android framework dependencies.
 
-## First Vertical Slice
+## Completed First Vertical Slice
 
 Scope:
 
@@ -29,23 +29,32 @@ Scope:
 - Calculate today's visible passes locally on-device.
 - Display a polished Compose list with satellite name, mode, AOS time, LOS time, maximum elevation, and direction.
 
-Out of scope for the first slice:
+The following deferred items have since been added:
 
-- Room persistence.
 - WorkManager refresh scheduling.
 - Detailed pass screen.
+- Improved AOS/LOS boundary interpolation.
+- Offline TLE caching.
+- Manual location fallback.
+- Minimum-elevation and operating-mode filters.
+
+Still deferred:
+
+- Room persistence for structured satellite/orbital data.
 - Live Doppler correction.
 - Compass and sky-path rendering.
 - Full satellite catalog management.
 
 ## Current Baseline
 
-As of 2026-08-25:
+As of 2026-08-30:
 
-- Project has the first pass-list vertical slice under package `com.thenetworkings.satqso`.
+- Project has a working pass-planning app under package `com.thenetworkings.satqso`.
+- The app supports GPS or manually entered coordinates, current local time display, cached TLEs, scheduled refresh, pass filters, and pass details.
 - Build uses AGP 9.3.2, Kotlin Compose plugin 2.2.10, compile SDK 37, target SDK 37, min SDK 24.
 - Build verified with `.\gradlew.bat :app:assembleDebug`.
 - Unit tests verified with `.\gradlew.bat :app:testDebugUnitTest`.
+- Manual device/emulator verification remains outstanding.
 
 ## Important Decisions
 
@@ -53,5 +62,5 @@ As of 2026-08-25:
 - Avoid server-dependent pass prediction.
 - Orekit is the selected SGP4/TLE engine for the first implementation. It is wrapped behind `PassPredictor`.
 - Orekit requires time-scale data. The app currently packages `orekit-data/tai-utc.dat` as a Java resource and initializes Orekit through `OrekitData`.
-- The first slice uses AMSAT `nasabare.txt` plus CelesTrak GP TLE endpoints for the `amateur` and `stations` groups. Fetching is best-effort across sources so a single unreachable feed does not fail pass calculation.
+- The app uses AMSAT `nasabare.txt` plus CelesTrak GP TLE endpoints for the `amateur` and `stations` groups. Fetching is best-effort across sources so a single unreachable feed does not fail pass calculation.
 - Major architecture or dependency choices that materially affect long-term maintainability should be confirmed before proceeding.

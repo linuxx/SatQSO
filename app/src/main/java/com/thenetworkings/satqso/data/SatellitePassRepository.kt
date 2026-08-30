@@ -7,12 +7,16 @@ import java.time.Clock
 import java.time.LocalDate
 import java.time.ZoneId
 
+interface PassDataSource {
+    suspend fun todayPasses(observerLocation: ObserverLocation): List<PassSummary>
+}
+
 class SatellitePassRepository(
     private val tleDataSource: CelestrakTleDataSource,
     private val passPredictor: PassPredictor,
     private val clock: Clock = Clock.systemDefaultZone(),
-) {
-    suspend fun todayPasses(observerLocation: ObserverLocation): List<PassSummary> {
+) : PassDataSource {
+    override suspend fun todayPasses(observerLocation: ObserverLocation): List<PassSummary> {
         val satellites = CuratedSatelliteCatalog.satellites
         val tles = tleDataSource.fetchTles(satellites.map { it.noradId }.toSet())
         val zone = ZoneId.systemDefault()

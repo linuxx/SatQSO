@@ -28,6 +28,8 @@ internal fun ObserverLocation.maidenheadLocator(): String {
     }
 }
 
+internal fun ObserverLocation.maidenheadGrid(): String = maidenheadLocator().take(4)
+
 private fun Double.formatCoordinate(positiveSuffix: String, negativeSuffix: String): String {
     val suffix = if (this >= 0) positiveSuffix else negativeSuffix
     return "%.4f %s".format(Locale.US, kotlin.math.abs(this), suffix)
