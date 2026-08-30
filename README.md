@@ -39,7 +39,12 @@ The filter dialog supports 24 hours, 2 days, 4 days, and 7 days, along with elev
 
 Pass details include a compass-oriented sky path, live satellite position, heading, countdown state, and elevation/azimuth timeline.
 
-[![SatQSO pass tracking detail](docs/screenshots/pass-detail-thumb.png)](docs/screenshots/pass-detail.png)
+<table>
+  <tr>
+    <td><a href="docs/screenshots/pass-detail.png"><img src="docs/screenshots/pass-detail-thumb.png" alt="SatQSO pass tracking detail"></a></td>
+    <td><a href="docs/screenshots/timeline.png"><img src="docs/screenshots/timeline-thumb.png" alt="SatQSO pass timeline"></a></td>
+  </tr>
+</table>
 
 ## Requirements
 
