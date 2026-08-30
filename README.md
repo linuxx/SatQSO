@@ -27,19 +27,19 @@ SatQSO is an Android satellite-pass planner for amateur radio operators. It calc
 
 The home screen shows only future passes in the selected rolling window. Each pass includes its local start time, live countdown, maximum elevation, and direction.
 
-![SatQSO upcoming pass list](docs/screenshots/home.png)
+[![SatQSO upcoming pass list](docs/screenshots/home-thumb.png)](docs/screenshots/home.png)
 
 ### Look-ahead filters
 
 The filter dialog supports 24 hours, 2 days, 4 days, and 7 days, along with elevation and operating-mode filters.
 
-![SatQSO look-ahead filters](docs/screenshots/filters.png)
+[![SatQSO look-ahead filters](docs/screenshots/filters-thumb.png)](docs/screenshots/filters.png)
 
 ### Pass tracking
 
 Pass details include a compass-oriented sky path, live satellite position, heading, countdown state, and elevation/azimuth timeline.
 
-![SatQSO pass tracking detail](docs/screenshots/pass-detail.png)
+[![SatQSO pass tracking detail](docs/screenshots/pass-detail-thumb.png)](docs/screenshots/pass-detail.png)
 
 ## Requirements
 
