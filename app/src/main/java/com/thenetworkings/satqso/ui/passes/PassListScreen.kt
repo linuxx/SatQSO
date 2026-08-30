@@ -1104,6 +1104,13 @@ private fun OrbitPreviewCard(
             ) {
                 Text("AOS", color = SignalGreen, style = MaterialTheme.typography.labelLarge)
                 Text(timeFormatter.format(pass.aos), fontWeight = FontWeight.Bold)
+                if (currentTime.isBefore(pass.aos)) {
+                    Text(
+                        text = formatCountdown(Duration.between(currentTime, pass.aos)),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = TextSecondary,
+                    )
+                }
             }
             Column(
                 modifier = Modifier
@@ -1119,22 +1126,14 @@ private fun OrbitPreviewCard(
                     color = TextSecondary,
                 )
             }
-            val passState = passStateLabel(pass, currentTime)
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(18.dp),
                 horizontalAlignment = Alignment.End,
             ) {
-                Text(
-                    text = passState.first,
-                    color = passState.second,
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Text(
-                    text = passState.third,
-                    fontWeight = FontWeight.Bold,
-                )
+                Text("PASS DURATION", color = TextSecondary, style = MaterialTheme.typography.labelLarge)
+                Text(formatDuration(pass.aos, pass.los), fontWeight = FontWeight.Bold)
             }
             StatusPill(
                 text = passStatusLabel(pass, currentTime),
@@ -1795,20 +1794,6 @@ private fun formatDuration(aos: Instant, los: Instant): String {
     val seconds = duration.minusMinutes(minutes).seconds
 
     return "${minutes}m ${seconds}s"
-}
-
-private fun passStateLabel(pass: PassSummary, currentTime: Instant): Triple<String, Color, String> = when {
-    currentTime.isBefore(pass.aos) -> Triple(
-        "STARTS IN",
-        SignalGreen,
-        formatCountdown(Duration.between(currentTime, pass.aos)),
-    )
-    currentTime.isBefore(pass.los) -> Triple(
-        "ENDS IN",
-        OrbitOrange,
-        formatCountdown(Duration.between(currentTime, pass.los)),
-    )
-    else -> Triple("PASS COMPLETE", TextSecondary, "")
 }
 
 private fun formatCountdown(duration: Duration): String {
