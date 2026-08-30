@@ -54,7 +54,7 @@ As of 2026-08-30:
 - Location selection supports GPS, decimal entry, and an embedded OpenStreetMap picker with a tap-to-place pin and GPS reset.
 - The location summary uses an amber `GPS • MODIFIED` label and coordinate value when a map pin overrides live GPS.
 - Pass details use a heading-relative compass radar and responsive telemetry panels for compact phones.
-- Current app release is `1.2.0` with version code `3`; future releases use the `1.x.0` versioning sequence.
+- Current app release is `1.2.1` with version code `4`; future releases use the `1.x.0` versioning sequence.
 - Build uses AGP 9.3.2, Kotlin Compose plugin 2.2.10, compile SDK 37, target SDK 37, min SDK 24.
 - Build verified with `.\gradlew.bat :app:assembleDebug`.
 - Release builds use R8/resource shrinking and a local, ignored keystore configuration from `keystore.properties`.

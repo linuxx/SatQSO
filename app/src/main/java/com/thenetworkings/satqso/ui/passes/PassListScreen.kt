@@ -1068,7 +1068,7 @@ private fun OrbitPreviewCard(
                     val startPoint = track.first()
                     val endPoint = track.last()
                     drawCircle(color = SignalGreen, radius = 9.dp.toPx(), center = skyPoint(startPoint.elevationDegrees, startPoint.azimuthDegrees))
-                    drawCircle(color = TextSecondary, radius = 9.dp.toPx(), center = skyPoint(endPoint.elevationDegrees, endPoint.azimuthDegrees))
+                    drawCircle(color = Color(0xFFFF4D5A), radius = 9.dp.toPx(), center = skyPoint(endPoint.elevationDegrees, endPoint.azimuthDegrees))
                 } else {
                     val start = Offset(center.x - radius * 0.72f, center.y + radius * 0.55f)
                     val end = Offset(center.x + radius * 0.62f, center.y - radius * 0.48f)
@@ -1080,7 +1080,7 @@ private fun OrbitPreviewCard(
                         cap = StrokeCap.Round,
                     )
                     drawCircle(color = SignalGreen, radius = 9.dp.toPx(), center = start)
-                    drawCircle(color = TextSecondary, radius = 9.dp.toPx(), center = end)
+                    drawCircle(color = Color(0xFFFF4D5A), radius = 9.dp.toPx(), center = end)
                 }
             }
             SatelliteAvatar(
@@ -1097,16 +1097,42 @@ private fun OrbitPreviewCard(
             CompassLabel("E", 90.0, compassHeading, radarRadius * 1.06f)
             CompassLabel("S", 180.0, compassHeading, radarRadius * 1.06f)
             CompassLabel("W", 270.0, compassHeading, radarRadius * 1.06f)
-            Column(
+            Surface(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(18.dp),
+                    .padding(14.dp)
+                    .border(1.dp, SignalGreen, MaterialTheme.shapes.small),
+                color = SpaceSurfaceHigh.copy(alpha = 0.96f),
+                shape = MaterialTheme.shapes.small,
             ) {
-                Text("AOS", color = SignalGreen, style = MaterialTheme.typography.labelLarge)
-                Text(timeFormatter.format(pass.aos), fontWeight = FontWeight.Bold)
-                if (currentTime.isBefore(pass.aos)) {
+                Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                    Text("AOS", color = SignalGreen, style = MaterialTheme.typography.labelLarge)
+                    Text(timeFormatter.format(pass.aos), fontWeight = FontWeight.Bold)
+                    if (currentTime.isBefore(pass.aos)) {
+                        Text(
+                            text = formatCountdown(Duration.between(currentTime, pass.aos)),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = TextSecondary,
+                        )
+                    }
+                }
+            }
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(14.dp)
+                    .border(1.dp, Color(0xFFFF4D5A), MaterialTheme.shapes.small),
+                color = SpaceSurfaceHigh.copy(alpha = 0.96f),
+                shape = MaterialTheme.shapes.small,
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    horizontalAlignment = Alignment.End,
+                ) {
+                    Text("LOS", color = Color(0xFFFF4D5A), style = MaterialTheme.typography.labelLarge)
+                    Text(timeFormatter.format(pass.los), fontWeight = FontWeight.Bold)
                     Text(
-                        text = formatCountdown(Duration.between(currentTime, pass.aos)),
+                        formatCountdown(Duration.between(currentTime, pass.los)),
                         style = MaterialTheme.typography.labelMedium,
                         color = TextSecondary,
                     )
@@ -1114,25 +1140,11 @@ private fun OrbitPreviewCard(
             }
             Column(
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(18.dp),
-                horizontalAlignment = Alignment.End,
-            ) {
-                Text("NEXT LOS", color = TextSecondary, style = MaterialTheme.typography.labelLarge)
-                Text(timeFormatter.format(pass.los), fontWeight = FontWeight.Bold)
-                Text(
-                    formatCountdown(Duration.between(currentTime, pass.los)),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextSecondary,
-                )
-            }
-            Column(
-                modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(18.dp),
                 horizontalAlignment = Alignment.End,
             ) {
-                Text("PASS DURATION", color = TextSecondary, style = MaterialTheme.typography.labelLarge)
+                Text("DURATION", color = TextSecondary, style = MaterialTheme.typography.labelLarge)
                 Text(formatDuration(pass.aos, pass.los), fontWeight = FontWeight.Bold)
             }
             StatusPill(

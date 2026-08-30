@@ -4,7 +4,7 @@
 
 SatQSO has a working Android prototype for planning amateur-radio satellite passes.
 
-Current local release build: `1.2.0` (version code `3`).
+Current local release build: `1.2.1` (version code `4`).
 
 ### Implemented
 
