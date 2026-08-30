@@ -29,7 +29,7 @@ The home screen shows only future passes in the selected rolling window. Each pa
 
 <table>
   <tr>
-    <td><a href="docs/screenshots/home.png"><img src="docs/screenshots/home-thumb.png" alt="SatQSO upcoming pass list"></a></td>
+    <td><a href="docs/screenshots/home.png"><img src="docs/screenshots/home-1.2.1-thumb.png" alt="SatQSO upcoming pass list"></a></td>
     <td><a href="docs/screenshots/home-lower.png"><img src="docs/screenshots/home-lower-thumb.png" alt="SatQSO additional upcoming passes"></a></td>
   </tr>
 </table>
