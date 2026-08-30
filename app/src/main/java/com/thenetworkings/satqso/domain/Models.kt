@@ -39,6 +39,13 @@ data class PassSummary(
     val maxElevationDegrees: Double,
     val aosAzimuthDegrees: Double,
     val losAzimuthDegrees: Double,
+    val track: List<PassTrackPoint> = emptyList(),
+)
+
+data class PassTrackPoint(
+    val instant: Instant,
+    val elevationDegrees: Double,
+    val azimuthDegrees: Double,
 )
 
 interface PassPredictor {

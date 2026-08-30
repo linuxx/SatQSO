@@ -15,6 +15,12 @@ SatQSO has a working Android prototype for planning amateur-radio satellite pass
 - Twelve-hour TLE cache and offline use of the last successful dataset.
 - WorkManager background TLE refresh.
 - Minimum-elevation and operating-mode filters.
+- Azimuth/elevation timeline on the pass detail screen.
+- Polar sky-path visualization in the pass detail screen.
+- Device heading readout using the rotation-vector sensor.
+- Time-synchronized satellite marker that follows the sky path and timeline.
+- Live pass-state countdown showing start, end, and completion status.
+- Home screen shows only upcoming passes in a rolling time window, with selectable look-ahead and per-pass start countdowns.
 - Unit tests for TLE parsing, pass prediction, boundary handling, filters, and location formatting.
 
 ### Verification
@@ -30,8 +36,7 @@ SatQSO has a working Android prototype for planning amateur-radio satellite pass
 - Complete runtime verification for manual location entry, network fallback, cache loading, and Orekit resource loading on Android.
 - Confirm curated satellite operating metadata against current AMSAT/ARISS sources.
 - Add Room persistence if the data model grows beyond the current cache.
-- Add azimuth/elevation timeline and sky-path visualization.
-- Add compass/device orientation integration.
+- Add map-style sky-path visualization with geographic context.
 - Add real-time Doppler-corrected uplink/downlink frequencies.
 - Add user settings for location source, preferred satellites, time format, and band/mode preferences.
 

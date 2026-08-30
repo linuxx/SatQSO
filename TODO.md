@@ -15,7 +15,7 @@
 - [x] Add curated satellite catalog.
 - [x] Add location permission and current-location provider.
 - [x] Add TLE retrieval/parsing for the curated catalog.
-- [x] Add local pass calculation for today.
+- [x] Add rolling local pass calculation for the selected look-ahead window.
 - [x] Build Compose pass list screen with loading, permission, error, and empty states.
 - [x] Add focused unit tests for parsing and pass calculation smoke coverage.
 - [x] Build and test.
@@ -30,6 +30,7 @@
 - [x] Add a fallback location entry path for emulators and devices without a recent fused location fix.
 - [x] Add user-selectable minimum elevation cutoff.
 - [x] Persist the last successful TLE set locally so pass calculation works completely offline after first launch.
+- [x] Show only upcoming passes in a rolling window with configurable look-ahead and start countdowns.
 
 ## Later Phases
 
@@ -37,7 +38,9 @@
 - [x] Add WorkManager periodic TLE/GP refresh.
 - [x] Add filtering by FM Voice, SSB/CW, APRS, SSTV, Digital/Data, and Telemetry.
 - [x] Add detailed pass screen with AOS, maximum elevation, LOS, azimuths, frequencies, and operating notes.
-- [ ] Add azimuth/elevation timeline and path visualization to the pass detail screen.
-- [ ] Add compass/device orientation integration.
+- [x] Add azimuth/elevation timeline to the pass detail screen.
+- [x] Add polar sky-path visualization to the pass detail screen.
+- [ ] Add map-style sky-path visualization to the pass detail screen.
+- [x] Add compass/device orientation integration.
 - [ ] Add real-time Doppler-corrected uplink/downlink display.
 - [ ] Add settings for location source, preferred satellites, elevation cutoff, time format, and band/mode preferences.

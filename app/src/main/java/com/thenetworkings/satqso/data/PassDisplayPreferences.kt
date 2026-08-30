@@ -6,6 +6,8 @@ import com.thenetworkings.satqso.domain.OperatingMode
 interface PassDisplayPreferences {
     fun minimumElevationDegrees(): Int
     fun saveMinimumElevationDegrees(value: Int)
+    fun lookAheadHours(): Int
+    fun saveLookAheadHours(value: Int)
     fun operatingModes(): Set<OperatingMode>
     fun saveOperatingModes(values: Set<OperatingMode>)
 }
@@ -19,6 +21,15 @@ class SharedPreferencesPassDisplayPreferences(context: Context) : PassDisplayPre
     override fun saveMinimumElevationDegrees(value: Int) {
         preferences.edit()
             .putInt(KEY_MINIMUM_ELEVATION_DEGREES, value)
+            .apply()
+    }
+
+    override fun lookAheadHours(): Int =
+        preferences.getInt(KEY_LOOK_AHEAD_HOURS, DEFAULT_LOOK_AHEAD_HOURS)
+
+    override fun saveLookAheadHours(value: Int) {
+        preferences.edit()
+            .putInt(KEY_LOOK_AHEAD_HOURS, value)
             .apply()
     }
 
@@ -41,7 +52,9 @@ class SharedPreferencesPassDisplayPreferences(context: Context) : PassDisplayPre
     private companion object {
         const val PREFERENCES_NAME = "pass_display_preferences"
         const val KEY_MINIMUM_ELEVATION_DEGREES = "minimum_elevation_degrees"
+        const val KEY_LOOK_AHEAD_HOURS = "look_ahead_hours"
         const val KEY_OPERATING_MODES = "operating_modes"
         const val DEFAULT_MINIMUM_ELEVATION_DEGREES = 10
+        const val DEFAULT_LOOK_AHEAD_HOURS = 24
     }
 }

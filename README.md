@@ -11,7 +11,13 @@ SatQSO is an Android satellite-pass planner for amateur radio operators. It calc
 - GPS location with manual latitude, longitude, and altitude fallback.
 - Maidenhead locator and live local-time display.
 - Minimum-elevation and operating-mode filters.
+- Rolling upcoming-pass list for the next 24 hours, with configurable 6-, 12-, 24-, or 48-hour look-ahead.
+- Per-pass start time and live countdown on the home screen.
 - Pass detail view with satellite-specific radio information.
+- Azimuth/elevation timeline in pass details.
+- Device heading readout in the sky view when a rotation sensor is available.
+- Live satellite position marker synchronized with the pass timeline.
+- Pass-state countdown for upcoming, active, and completed passes.
 - High-resolution launcher icon and dark space-themed UI.
 
 ## Requirements

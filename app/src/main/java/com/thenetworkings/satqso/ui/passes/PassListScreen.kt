@@ -11,6 +11,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyColumn
@@ -44,6 +46,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,11 +58,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -70,6 +75,7 @@ import com.thenetworkings.satqso.SatQsoDependencies
 import com.thenetworkings.satqso.domain.ObserverLocation
 import com.thenetworkings.satqso.domain.OperatingMode
 import com.thenetworkings.satqso.domain.PassSummary
+import com.thenetworkings.satqso.domain.PassTrackPoint
 import com.thenetworkings.satqso.domain.Satellite
 import com.thenetworkings.satqso.ui.theme.CyanPrimary
 import com.thenetworkings.satqso.ui.theme.CyanSecondary
@@ -82,9 +88,9 @@ import com.thenetworkings.satqso.ui.theme.SpaceSurface
 import com.thenetworkings.satqso.ui.theme.SpaceSurfaceHigh
 import com.thenetworkings.satqso.ui.theme.SatQSOTheme
 import com.thenetworkings.satqso.ui.theme.TextSecondary
+import com.thenetworkings.satqso.location.OrientationRepository
 import java.time.Duration
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
@@ -134,9 +140,11 @@ fun PassListRoute(dependencies: SatQsoDependencies) {
         onShowFilters = viewModel::showFilters,
         onDismissFilters = viewModel::dismissFilters,
         onMinimumElevationSelected = viewModel::setMinimumElevationDegrees,
+        onLookAheadHoursSelected = viewModel::setLookAheadHours,
         onOperatingModeToggled = viewModel::toggleOperatingMode,
         onPassSelected = viewModel::selectPass,
         onClosePassDetails = viewModel::closePassDetails,
+        orientationRepository = dependencies.orientationRepository,
     )
 }
 
@@ -152,9 +160,11 @@ fun PassListScreen(
     onShowFilters: () -> Unit,
     onDismissFilters: () -> Unit,
     onMinimumElevationSelected: (Int) -> Unit,
+    onLookAheadHoursSelected: (Int) -> Unit = {},
     onOperatingModeToggled: (OperatingMode) -> Unit,
     onPassSelected: (PassSummary) -> Unit,
     onClosePassDetails: () -> Unit,
+    orientationRepository: OrientationRepository? = null,
 ) {
     BackHandler(enabled = uiState.selectedPass != null) {
         onClosePassDetails()
@@ -183,7 +193,7 @@ fun PassListScreen(
                             text = if (uiState.selectedPass != null) {
                                 "Pass details"
                             } else {
-                                "Visible passes today"
+                                "Upcoming satellite passes"
                             },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -219,7 +229,10 @@ fun PassListScreen(
                 StarField()
                 val selectedPass = uiState.selectedPass
                 if (selectedPass != null) {
-                    PassDetail(pass = selectedPass)
+                    PassDetail(
+                        pass = selectedPass,
+                        orientationRepository = orientationRepository,
+                    )
                 } else {
                     when {
                         uiState.needsLocationPermission -> PermissionState(onRequestLocation, onManualLocation)
@@ -236,6 +249,7 @@ fun PassListScreen(
                             passes = uiState.passes,
                             observerLocation = uiState.observerLocation,
                             unfilteredPassCount = uiState.unfilteredPassCount,
+                            lookAheadHours = uiState.lookAheadHours,
                             onPassSelected = onPassSelected,
                         )
                     }
@@ -249,8 +263,10 @@ fun PassListScreen(
                 if (uiState.showFilters) {
                     FilterDialog(
                         minimumElevationDegrees = uiState.minimumElevationDegrees,
+                        lookAheadHours = uiState.lookAheadHours,
                         selectedOperatingModes = uiState.selectedOperatingModes,
                         onMinimumElevationSelected = onMinimumElevationSelected,
+                        onLookAheadHoursSelected = onLookAheadHoursSelected,
                         onOperatingModeToggled = onOperatingModeToggled,
                         onDismiss = onDismissFilters,
                     )
@@ -265,8 +281,17 @@ private fun PassList(
     passes: List<PassSummary>,
     observerLocation: ObserverLocation?,
     unfilteredPassCount: Int,
+    lookAheadHours: Int,
     onPassSelected: (PassSummary) -> Unit,
 ) {
+    var currentTime by remember { mutableStateOf(Instant.now()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentTime = Instant.now()
+            delay(1_000)
+        }
+    }
+    val upcomingPasses = passes.filter { it.aos.isAfter(currentTime) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -283,34 +308,67 @@ private fun PassList(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
-                        text = "TODAY",
+                        text = "UPCOMING",
                         style = MaterialTheme.typography.titleMedium,
                         color = CyanPrimary,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
                         modifier = Modifier.weight(1f).padding(start = 8.dp),
-                        text = "${dateFormatter.format(LocalDate.now())} - " +
-                            passCountLabel(passes.size, unfilteredPassCount),
+                        text = "Next $lookAheadHours hours - " +
+                            passCountLabel(upcomingPasses.size, unfilteredPassCount),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         }
-        items(passes) { pass ->
-            PassCard(pass = pass, onClick = { onPassSelected(pass) })
+        if (upcomingPasses.isEmpty()) {
+            item {
+                EmptyUpcomingState()
+            }
+        } else {
+            items(upcomingPasses) { pass ->
+                PassCard(
+                    pass = pass,
+                    currentTime = currentTime,
+                    onClick = { onPassSelected(pass) },
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun EmptyUpcomingState() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = "No upcoming passes in this window",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "Try a longer look-ahead period or refresh the orbital data.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
 @Composable
 private fun PassCard(
     pass: PassSummary,
+    currentTime: Instant,
     onClick: () -> Unit,
 ) {
     val accent = passAccent(pass)
-    val isActive = Instant.now().let { it >= pass.aos && it <= pass.los }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -349,8 +407,8 @@ private fun PassCard(
                         )
                     }
                     StatusPill(
-                        text = if (isActive) "ACTIVE" else "UPCOMING",
-                        accent = if (isActive) SignalGreen else accent,
+                        text = "UPCOMING",
+                        accent = accent,
                     )
                 }
                 Row(
@@ -358,12 +416,8 @@ private fun PassCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     PassDatum(
-                        label = if (isActive) "PASS" else "AOS",
-                        value = if (isActive) {
-                            "${timeFormatter.format(pass.aos)} - ${timeFormatter.format(pass.los)}"
-                        } else {
-                            timeFormatter.format(pass.aos)
-                        },
+                        label = "STARTS AT",
+                        value = "${timeFormatter.format(pass.aos)} (${formatStartCountdown(currentTime, pass.aos)})",
                     )
                     PassDatum("MAX ELEV.", "${pass.maxElevationDegrees.roundToInt()} deg", accent)
                     PassDatum("DIRECTION", passDirection(pass), accent)
@@ -492,7 +546,23 @@ private fun PassDatum(
 }
 
 @Composable
-private fun PassDetail(pass: PassSummary) {
+private fun PassDetail(
+    pass: PassSummary,
+    orientationRepository: OrientationRepository?,
+) {
+    val headingDegrees by orientationRepository?.headingDegrees?.collectAsStateWithLifecycle()
+        ?: remember { mutableStateOf<Int?>(null) }
+    var currentTime by remember { mutableStateOf(Instant.now()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentTime = Instant.now()
+            delay(1_000)
+        }
+    }
+    DisposableEffect(orientationRepository) {
+        orientationRepository?.start()
+        onDispose { orientationRepository?.stop() }
+    }
     val accent = passAccent(pass)
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -500,7 +570,12 @@ private fun PassDetail(pass: PassSummary) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            OrbitPreviewCard(pass = pass, accent = accent)
+            OrbitPreviewCard(
+                pass = pass,
+                accent = accent,
+                headingDegrees = headingDegrees,
+                currentTime = currentTime,
+            )
         }
         item {
             Card(
@@ -542,6 +617,9 @@ private fun PassDetail(pass: PassSummary) {
             }
         }
         item {
+            PassTimeline(pass = pass, accent = accent, currentTime = currentTime)
+        }
+        item {
             DetailSection(
                 title = "Frequencies",
                 rows = listOf(
@@ -563,9 +641,145 @@ private fun PassDetail(pass: PassSummary) {
 }
 
 @Composable
+private fun PassTimeline(
+    pass: PassSummary,
+    accent: Color,
+    currentTime: Instant,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, SpaceBorder, MaterialTheme.shapes.medium),
+        colors = CardDefaults.cardColors(containerColor = SpaceSurface.copy(alpha = 0.9f)),
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "Pass timeline",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                TimelineLegend(label = "Elevation", color = OrbitOrange)
+                TimelineLegend(label = "Azimuth", color = CyanPrimary)
+            }
+            if (pass.track.size < 2) {
+                Text(
+                    text = "Track data unavailable for this pass.",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            } else {
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(190.dp),
+                ) {
+                    val points = pass.track.sortedBy { it.instant }
+                    val left = 42.dp.toPx()
+                    val right = 12.dp.toPx()
+                    val top = 12.dp.toPx()
+                    val bottom = 24.dp.toPx()
+                    val plotWidth = (size.width - left - right).coerceAtLeast(1f)
+                    val plotHeight = (size.height - top - bottom).coerceAtLeast(1f)
+                    val start = points.first().instant.toEpochMilli().toFloat()
+                    val end = points.last().instant.toEpochMilli().toFloat()
+                    val span = (end - start).coerceAtLeast(1f)
+                    fun x(instant: Instant) = left +
+                        ((instant.toEpochMilli().toFloat() - start) / span) * plotWidth
+                    fun elevationY(value: Double) = top +
+                        (1f - (value / 90.0).coerceIn(0.0, 1.0).toFloat()) * plotHeight
+                    fun azimuthY(value: Double) = top +
+                        (1f - (value / 360.0).coerceIn(0.0, 1.0).toFloat()) * plotHeight
+
+                    drawLine(
+                        color = SpaceBorder,
+                        start = Offset(left, top),
+                        end = Offset(left, top + plotHeight),
+                        strokeWidth = 1.dp.toPx(),
+                    )
+                    drawLine(
+                        color = SpaceBorder,
+                        start = Offset(left, top + plotHeight),
+                        end = Offset(left + plotWidth, top + plotHeight),
+                        strokeWidth = 1.dp.toPx(),
+                    )
+                    listOf(0, 45, 90).forEach { value ->
+                        val y = elevationY(value.toDouble())
+                        drawLine(
+                            color = SpaceBorder.copy(alpha = 0.45f),
+                            start = Offset(left, y),
+                            end = Offset(left + plotWidth, y),
+                            strokeWidth = 1.dp.toPx(),
+                        )
+                    }
+                    val elevationPath = Path()
+                    val azimuthPath = Path()
+                    points.forEachIndexed { index, point ->
+                        val pointX = x(point.instant)
+                        val elevationPoint = Offset(pointX, elevationY(point.elevationDegrees))
+                        val azimuthPoint = Offset(pointX, azimuthY(point.azimuthDegrees))
+                        if (index == 0) {
+                            elevationPath.moveTo(elevationPoint.x, elevationPoint.y)
+                            azimuthPath.moveTo(azimuthPoint.x, azimuthPoint.y)
+                        } else {
+                            elevationPath.lineTo(elevationPoint.x, elevationPoint.y)
+                            azimuthPath.lineTo(azimuthPoint.x, azimuthPoint.y)
+                        }
+                    }
+                    drawPath(elevationPath, color = OrbitOrange, style = Stroke(width = 3.dp.toPx()))
+                    drawPath(azimuthPath, color = CyanPrimary, style = Stroke(width = 2.dp.toPx()))
+                    points.positionAt(currentTime)?.let { currentPoint ->
+                        val currentX = x(currentPoint.instant)
+                        drawLine(
+                            color = SignalGreen.copy(alpha = 0.8f),
+                            start = Offset(currentX, top),
+                            end = Offset(currentX, top + plotHeight),
+                            strokeWidth = 2.dp.toPx(),
+                        )
+                        drawCircle(
+                            color = SignalGreen,
+                            radius = 5.dp.toPx(),
+                            center = Offset(currentX, elevationY(currentPoint.elevationDegrees)),
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(timeFormatter.format(pass.aos), style = MaterialTheme.typography.labelSmall)
+                    Text(timeFormatter.format(pass.los), style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimelineLegend(label: String, color: Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .background(color, CircleShape),
+        )
+        Text(label, style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+    }
+}
+
+@Composable
 private fun OrbitPreviewCard(
     pass: PassSummary,
     accent: Color,
+    headingDegrees: Int?,
+    currentTime: Instant,
 ) {
     Card(
         modifier = Modifier
@@ -575,7 +789,19 @@ private fun OrbitPreviewCard(
         colors = CardDefaults.cardColors(containerColor = SpaceSurfaceHigh.copy(alpha = 0.82f)),
         shape = MaterialTheme.shapes.medium,
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val radarRadius = minOf(maxWidth, maxHeight) * 0.39f
+            val radarCenterX = maxWidth / 2f
+            val radarCenterY = maxHeight / 2f
+            val livePoint = pass.track.positionAt(currentTime)
+            val currentAzimuth = livePoint?.azimuthDegrees ?: pass.aosAzimuthDegrees
+            val currentElevation = livePoint?.elevationDegrees ?: 0.0
+            val relativeAzimuthRadians = Math.toRadians(currentAzimuth - (headingDegrees ?: 0))
+            val currentRadius = radarRadius *
+                (1.0 - (currentElevation / 90.0).coerceIn(0.0, 1.0)).toFloat()
+            val iconCenterX = radarCenterX + currentRadius * kotlin.math.sin(relativeAzimuthRadians).toFloat()
+            val iconCenterY = radarCenterY - currentRadius * kotlin.math.cos(relativeAzimuthRadians).toFloat()
+            val iconSize = 30.dp
             StarField(modifier = Modifier.matchParentSize(), alpha = 0.8f)
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val center = Offset(size.width / 2f, size.height / 2f)
@@ -598,24 +824,88 @@ private fun OrbitPreviewCard(
                     center = center,
                     style = Stroke(width = 1.dp.toPx()),
                 )
-                val start = Offset(center.x - radius * 0.72f, center.y + radius * 0.55f)
-                val end = Offset(center.x + radius * 0.62f, center.y - radius * 0.48f)
-                drawLine(
-                    color = accent,
-                    start = start,
-                    end = end,
-                    strokeWidth = 4.dp.toPx(),
-                    cap = StrokeCap.Round,
+                val heading = headingDegrees?.toDouble() ?: 0.0
+                fun skyPoint(elevationDegrees: Double, azimuthDegrees: Double): Offset {
+                    val trackRadius = radius *
+                        (1.0 - (elevationDegrees / 90.0).coerceIn(0.0, 1.0)).toFloat()
+                    val relativeAzimuthRadians = Math.toRadians(azimuthDegrees - heading)
+                    return Offset(
+                        x = center.x + trackRadius * kotlin.math.sin(relativeAzimuthRadians).toFloat(),
+                        y = center.y - trackRadius * kotlin.math.cos(relativeAzimuthRadians).toFloat(),
+                    )
+                }
+                val northRadians = Math.toRadians(-heading)
+                val northTip = Offset(
+                    x = center.x + radius * 0.92f * kotlin.math.sin(northRadians).toFloat(),
+                    y = center.y - radius * 0.92f * kotlin.math.cos(northRadians).toFloat(),
                 )
-                drawCircle(color = SignalGreen, radius = 9.dp.toPx(), center = start)
-                drawCircle(color = TextSecondary, radius = 9.dp.toPx(), center = end)
+                val northBaseCenter = Offset(
+                    x = center.x + radius * 1.08f * kotlin.math.sin(northRadians).toFloat(),
+                    y = center.y - radius * 1.08f * kotlin.math.cos(northRadians).toFloat(),
+                )
+                val northBaseHalfWidth = 10.dp.toPx()
+                val northPerpendicular = Offset(
+                    x = kotlin.math.cos(northRadians).toFloat() * northBaseHalfWidth,
+                    y = kotlin.math.sin(northRadians).toFloat() * northBaseHalfWidth,
+                )
+                val northMarker = Path().apply {
+                    moveTo(northTip.x, northTip.y)
+                    lineTo(northBaseCenter.x + northPerpendicular.x, northBaseCenter.y + northPerpendicular.y)
+                    lineTo(northBaseCenter.x - northPerpendicular.x, northBaseCenter.y - northPerpendicular.y)
+                    close()
+                }
+                drawPath(northMarker, color = Color(0xFFFF4D5A))
+                val track = pass.track.sortedBy { it.instant }
+                if (track.size >= 2) {
+                    val path = Path()
+                    track.forEachIndexed { index, point ->
+                        val pointOffset = skyPoint(point.elevationDegrees, point.azimuthDegrees)
+                        if (index == 0) {
+                            path.moveTo(pointOffset.x, pointOffset.y)
+                        } else {
+                            path.lineTo(pointOffset.x, pointOffset.y)
+                        }
+                    }
+                    drawPath(path, color = accent, style = Stroke(width = 4.dp.toPx()))
+                    val startPoint = track.first()
+                    val endPoint = track.last()
+                    drawCircle(color = SignalGreen, radius = 9.dp.toPx(), center = skyPoint(startPoint.elevationDegrees, startPoint.azimuthDegrees))
+                    drawCircle(color = TextSecondary, radius = 9.dp.toPx(), center = skyPoint(endPoint.elevationDegrees, endPoint.azimuthDegrees))
+                } else {
+                    val start = Offset(center.x - radius * 0.72f, center.y + radius * 0.55f)
+                    val end = Offset(center.x + radius * 0.62f, center.y - radius * 0.48f)
+                    drawLine(
+                        color = accent,
+                        start = start,
+                        end = end,
+                        strokeWidth = 4.dp.toPx(),
+                        cap = StrokeCap.Round,
+                    )
+                    drawCircle(color = SignalGreen, radius = 9.dp.toPx(), center = start)
+                    drawCircle(color = TextSecondary, radius = 9.dp.toPx(), center = end)
+                }
             }
             SatelliteAvatar(
                 pass = pass,
                 accent = accent,
-                sizeDp = 92,
-                modifier = Modifier.align(Alignment.Center),
+                sizeDp = 30,
+                modifier = Modifier.offset(
+                    x = iconCenterX - iconSize / 2f,
+                    y = iconCenterY - iconSize / 2f,
+                ),
             )
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("HEADING", color = CyanSecondary, style = MaterialTheme.typography.labelLarge)
+                Text(
+                    text = headingDegrees?.let { "$it deg" } ?: "Unavailable",
+                    fontWeight = FontWeight.Bold,
+                )
+            }
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -632,6 +922,23 @@ private fun OrbitPreviewCard(
             ) {
                 Text("LOS", color = TextSecondary, style = MaterialTheme.typography.labelLarge)
                 Text(timeFormatter.format(pass.los), fontWeight = FontWeight.Bold)
+            }
+            val passState = passStateLabel(pass, currentTime)
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(18.dp),
+                horizontalAlignment = Alignment.End,
+            ) {
+                Text(
+                    text = passState.first,
+                    color = passState.second,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Text(
+                    text = passState.third,
+                    fontWeight = FontWeight.Bold,
+                )
             }
             StatusPill(
                 text = "${pass.maxElevationDegrees.roundToInt()} deg max",
@@ -984,8 +1291,10 @@ private fun EmptyState(
 @Composable
 private fun FilterDialog(
     minimumElevationDegrees: Int,
+    lookAheadHours: Int,
     selectedOperatingModes: Set<OperatingMode>,
     onMinimumElevationSelected: (Int) -> Unit,
+    onLookAheadHoursSelected: (Int) -> Unit,
     onOperatingModeToggled: (OperatingMode) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -997,6 +1306,10 @@ private fun FilterDialog(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
+                LookAheadSelector(
+                    selectedLookAheadHours = lookAheadHours,
+                    onSelected = onLookAheadHoursSelected,
+                )
                 MinimumElevationSelector(
                     selectedMinimumElevationDegrees = minimumElevationDegrees,
                     onSelected = onMinimumElevationSelected,
@@ -1013,6 +1326,34 @@ private fun FilterDialog(
             }
         },
     )
+}
+
+@Composable
+private fun LookAheadSelector(
+    selectedLookAheadHours: Int,
+    onSelected: (Int) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Look ahead",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            LookAheadHourOptions.forEach { hours ->
+                FilterChip(
+                    selected = selectedLookAheadHours == hours,
+                    onClick = { onSelected(hours) },
+                    label = { Text("$hours hours") },
+                    colors = filterChipColors(CyanPrimary),
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -1108,8 +1449,6 @@ private val clockFormatter = DateTimeFormatter
     .ofPattern("h:mm a")
     .withZone(ZoneId.systemDefault())
 
-private val dateFormatter = java.time.format.DateTimeFormatter.ofPattern("EEEE, MMM d")
-
 private fun spaceGradient(): Brush = Brush.verticalGradient(
     colors = listOf(
         Color(0xFF020711),
@@ -1154,12 +1493,77 @@ private fun satelliteArtwork(pass: PassSummary): Int = when {
 private fun formatAzimuth(degrees: Double): String =
     "${degrees.roundToInt()} deg ${compassPoint(degrees)}"
 
+private fun List<PassTrackPoint>.positionAt(instant: Instant): PassTrackPoint? {
+    if (isEmpty()) return null
+    val points = sortedBy { it.instant }
+    if (instant.isBefore(points.first().instant)) return points.first()
+    if (instant.isAfter(points.last().instant)) return points.last()
+
+    points.zipWithNext().firstOrNull { (before, after) ->
+        !instant.isBefore(before.instant) && !instant.isAfter(after.instant)
+    }?.let { (before, after) ->
+        val span = Duration.between(before.instant, after.instant).toMillis()
+        val elapsed = Duration.between(before.instant, instant).toMillis()
+        val fraction = if (span <= 0L) 0.0 else elapsed.toDouble() / span
+        val azimuthDelta = ((after.azimuthDegrees - before.azimuthDegrees + 540.0) % 360.0) - 180.0
+        return PassTrackPoint(
+            instant = instant,
+            elevationDegrees = before.elevationDegrees +
+                (after.elevationDegrees - before.elevationDegrees) * fraction,
+            azimuthDegrees = (before.azimuthDegrees + azimuthDelta * fraction + 360.0) % 360.0,
+        )
+    }
+    return points.last()
+}
+
 private fun formatDuration(aos: Instant, los: Instant): String {
     val duration = Duration.between(aos, los)
     val minutes = duration.toMinutes()
     val seconds = duration.minusMinutes(minutes).seconds
 
     return "${minutes}m ${seconds}s"
+}
+
+private fun passStateLabel(pass: PassSummary, currentTime: Instant): Triple<String, Color, String> = when {
+    currentTime.isBefore(pass.aos) -> Triple(
+        "STARTS IN",
+        SignalGreen,
+        formatCountdown(Duration.between(currentTime, pass.aos)),
+    )
+    currentTime.isBefore(pass.los) -> Triple(
+        "ENDS IN",
+        OrbitOrange,
+        formatCountdown(Duration.between(currentTime, pass.los)),
+    )
+    else -> Triple("PASS COMPLETE", TextSecondary, "")
+}
+
+private fun formatCountdown(duration: Duration): String {
+    val seconds = duration.seconds.coerceAtLeast(0L)
+    val hours = seconds / 3_600
+    val minutes = (seconds % 3_600) / 60
+    val remainingSeconds = seconds % 60
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, remainingSeconds)
+    } else {
+        "%02d:%02d".format(minutes, remainingSeconds)
+    }
+}
+
+private fun formatStartCountdown(currentTime: Instant, start: Instant): String {
+    val seconds = Duration.between(currentTime, start).seconds.coerceAtLeast(0L)
+    val minutes = (seconds + 59L) / 60L
+    if (minutes < 1L) return "less than a minute"
+    val hours = minutes / 60L
+    val remainingMinutes = minutes % 60L
+    return when {
+        hours > 0L && remainingMinutes > 0L ->
+            "$hours hr $remainingMinutes min"
+        hours > 0L ->
+            "$hours hr"
+        else ->
+            "$minutes min"
+    }
 }
 
 @Composable

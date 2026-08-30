@@ -73,7 +73,7 @@ class OrekitPassPredictor : PassPredictor {
                     aosAzimuthDegrees = sample.sample.azimuthDegrees,
                     maxElevationDegrees = sample.sample.elevationDegrees,
                     losAzimuthDegrees = sample.sample.azimuthDegrees,
-                )
+                ).also { it.record(sample) }
             }
         val sampleStepSeconds = 60L
 
@@ -89,7 +89,10 @@ class OrekitPassPredictor : PassPredictor {
                         aosAzimuthDegrees = aos.sample.azimuthDegrees,
                         maxElevationDegrees = aos.sample.elevationDegrees,
                         losAzimuthDegrees = aos.sample.azimuthDegrees,
-                    ).also { it.record(sample) }
+                    ).also {
+                        it.record(aos)
+                        it.record(sample)
+                    }
                 }
                 previous.sample.elevationDegrees > 0.0 && sample.sample.elevationDegrees <= 0.0 -> {
                     val los = findHorizonCrossing(propagator, observer, previous, sample)
@@ -162,6 +165,7 @@ class OrekitPassPredictor : PassPredictor {
         val aosAzimuthDegrees: Double,
         var losAzimuthDegrees: Double,
         var maxElevationDegrees: Double,
+        val trackPoints: MutableList<PassTrackPoint> = mutableListOf(),
     ) {
         fun record(timedSample: TimedSkySample) {
             if (timedSample.sample.elevationDegrees > maxElevationDegrees) {
@@ -169,6 +173,11 @@ class OrekitPassPredictor : PassPredictor {
             }
             los = timedSample.instant
             losAzimuthDegrees = timedSample.sample.azimuthDegrees
+            trackPoints += PassTrackPoint(
+                instant = timedSample.instant,
+                elevationDegrees = timedSample.sample.elevationDegrees.coerceAtLeast(0.0),
+                azimuthDegrees = timedSample.sample.azimuthDegrees,
+            )
         }
 
         fun toSummary(satellite: Satellite): PassSummary? {
@@ -181,6 +190,7 @@ class OrekitPassPredictor : PassPredictor {
                     maxElevationDegrees = maxElevationDegrees,
                     aosAzimuthDegrees = aosAzimuthDegrees,
                     losAzimuthDegrees = losAzimuthDegrees,
+                    track = trackPoints.toList(),
                 )
             } else {
                 null

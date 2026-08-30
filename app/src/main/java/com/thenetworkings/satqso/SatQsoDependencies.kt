@@ -7,6 +7,7 @@ import com.thenetworkings.satqso.data.SharedPreferencesPassDisplayPreferences
 import com.thenetworkings.satqso.data.SharedPreferencesTleCache
 import com.thenetworkings.satqso.domain.OrekitPassPredictor
 import com.thenetworkings.satqso.location.LocationRepository
+import com.thenetworkings.satqso.location.OrientationRepository
 import okhttp3.OkHttpClient
 
 class SatQsoDependencies(context: Context) {
@@ -14,6 +15,7 @@ class SatQsoDependencies(context: Context) {
     private val httpClient = OkHttpClient()
 
     val locationRepository = LocationRepository(appContext)
+    val orientationRepository = OrientationRepository(appContext)
     val passDisplayPreferences = SharedPreferencesPassDisplayPreferences(appContext)
     val passRepository = SatellitePassRepository(
         tleDataSource = CelestrakTleDataSource(

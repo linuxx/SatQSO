@@ -9,6 +9,8 @@ import com.thenetworkings.satqso.domain.ObserverLocation
 import com.thenetworkings.satqso.domain.OperatingMode
 import com.thenetworkings.satqso.domain.PassSummary
 import com.thenetworkings.satqso.location.LocationDataSource
+import java.time.Duration
+import java.time.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +27,7 @@ data class PassListUiState(
     val observerLocation: ObserverLocation? = null,
     val unfilteredPassCount: Int = 0,
     val minimumElevationDegrees: Int = DefaultMinimumElevationDegrees,
+    val lookAheadHours: Int = DefaultLookAheadHours,
     val selectedOperatingModes: Set<OperatingMode> = OperatingModeFilters.toSet(),
     val errorMessage: String? = null,
 )
@@ -44,10 +47,14 @@ class PassListViewModel(
             ?: DefaultMinimumElevationDegrees
         val selectedOperatingModes = passDisplayPreferences.operatingModes()
             .ifEmpty { OperatingModeFilters.toSet() }
+        val lookAheadHours = passDisplayPreferences.lookAheadHours()
+            .takeIf { it in LookAheadHourOptions }
+            ?: DefaultLookAheadHours
         _uiState.update {
             it.copy(
                 minimumElevationDegrees = minimumElevationDegrees,
                 selectedOperatingModes = selectedOperatingModes,
+                lookAheadHours = lookAheadHours,
             )
         }
         refresh()
@@ -76,7 +83,9 @@ class PassListViewModel(
 
             runCatching {
                 val location = locationRepository.currentLocation()
-                location to passRepository.todayPasses(location)
+                val start = Instant.now()
+                val end = start.plus(Duration.ofHours(_uiState.value.lookAheadHours.toLong()))
+                location to passRepository.passes(location, start, end)
             }.onSuccess { (location, passes) ->
                 allPasses = passes
                 _uiState.update {
@@ -114,6 +123,13 @@ class PassListViewModel(
                 ),
             )
         }
+    }
+
+    fun setLookAheadHours(value: Int) {
+        if (value !in LookAheadHourOptions) return
+        passDisplayPreferences.saveLookAheadHours(value)
+        _uiState.update { it.copy(lookAheadHours = value) }
+        refresh()
     }
 
     fun toggleOperatingMode(mode: OperatingMode) {

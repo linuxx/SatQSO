@@ -159,7 +159,11 @@ private class FakePassDataSource(
 ) : PassDataSource {
     var requestCount = 0
 
-    override suspend fun todayPasses(observerLocation: ObserverLocation): List<PassSummary> {
+    override suspend fun passes(
+        observerLocation: ObserverLocation,
+        start: java.time.Instant,
+        end: java.time.Instant,
+    ): List<PassSummary> {
         requestCount += 1
         gate?.await()
         failure?.let { throw it }
@@ -172,6 +176,14 @@ private class FakePassDisplayPreferences(
     private var modes: Set<OperatingMode> = OperatingModeFilters.toSet(),
 ) : PassDisplayPreferences {
     override fun minimumElevationDegrees() = elevation
+
+    private var lookAhead = 24
+
+    override fun lookAheadHours() = lookAhead
+
+    override fun saveLookAheadHours(value: Int) {
+        lookAhead = value
+    }
 
     override fun saveMinimumElevationDegrees(value: Int) {
         elevation = value
