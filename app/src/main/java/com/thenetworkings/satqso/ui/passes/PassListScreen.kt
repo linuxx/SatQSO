@@ -1,11 +1,7 @@
 package com.thenetworkings.satqso.ui.passes
 
 import android.Manifest
-import android.os.Handler
-import android.os.Looper
-import android.webkit.JavascriptInterface
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -99,6 +95,13 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import org.osmdroid.config.Configuration
+import org.osmdroid.events.MapEventsReceiver
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.MapEventsOverlay
+import org.osmdroid.views.overlay.Marker
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
@@ -1592,8 +1595,6 @@ private fun MapLocationDialog(
     onReset: () -> Unit,
 ) {
     var selectedLocation by remember(initialLocation) { mutableStateOf(initialLocation) }
-    var mapView by remember { mutableStateOf<WebView?>(null) }
-
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Choose location") },
@@ -1605,37 +1606,18 @@ private fun MapLocationDialog(
                         .fillMaxWidth()
                         .height(360.dp),
                     factory = { context ->
-                        WebView(context).apply {
-                            mapView = this
-                            settings.javaScriptEnabled = true
-                            settings.domStorageEnabled = true
-                            webViewClient = WebViewClient()
-                            addJavascriptInterface(
-                                MapPickerBridge { latitude, longitude ->
-                                    Handler(Looper.getMainLooper()).post {
-                                        selectedLocation = ObserverLocation(
-                                            latitudeDegrees = latitude,
-                                            longitudeDegrees = longitude,
-                                            altitudeMeters = selectedLocation.altitudeMeters,
-                                        )
-                                    }
-                                },
-                                "SatQso",
-                            )
-                            loadDataWithBaseURL(
-                                "https://satqso.local/",
-                                mapHtml(selectedLocation),
-                                "text/html",
-                                "UTF-8",
-                                null,
+                        createLocationMap(context, selectedLocation) { latitude, longitude ->
+                            selectedLocation = ObserverLocation(
+                                latitudeDegrees = latitude,
+                                longitudeDegrees = longitude,
+                                altitudeMeters = selectedLocation.altitudeMeters,
                             )
                         }
                     },
-                    update = { webView ->
-                        webView.evaluateJavascript(
-                            "setPin(${selectedLocation.latitudeDegrees},${selectedLocation.longitudeDegrees});",
-                            null,
-                        )
+                    update = { mapView ->
+                        val marker = mapView.tag as Marker
+                        marker.position = GeoPoint(selectedLocation.latitudeDegrees, selectedLocation.longitudeDegrees)
+                        mapView.invalidate()
                     },
                 )
                 Text(
@@ -1659,49 +1641,42 @@ private fun MapLocationDialog(
         },
     )
 
-    DisposableEffect(mapView) {
-        onDispose { mapView?.destroy() }
-    }
 }
 
-private class MapPickerBridge(
-    private val onLocationSelected: (Double, Double) -> Unit,
-) {
-    @JavascriptInterface
-    fun onMapClick(latitude: Double, longitude: Double) {
-        onLocationSelected(latitude, longitude)
-    }
-}
+private fun createLocationMap(
+    context: Context,
+    location: ObserverLocation,
+    onLocationSelected: (Double, Double) -> Unit,
+): MapView {
+    Configuration.getInstance().userAgentValue = context.packageName
+    return MapView(context).apply {
+        setTileSource(TileSourceFactory.MAPNIK)
+        setMultiTouchControls(true)
+        controller.setZoom(11.0)
+        controller.setCenter(GeoPoint(location.latitudeDegrees, location.longitudeDegrees))
 
-private fun mapHtml(location: ObserverLocation): String = """
-    <!doctype html>
-    <html>
-    <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-      <style>html,body,#map{height:100%;margin:0;background:#101820} .leaflet-control-attribution{font-size:9px}</style>
-    </head>
-    <body>
-      <div id="map"></div>
-      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-      <script>
-        const map = L.map('map').setView([${location.latitudeDegrees}, ${location.longitudeDegrees}], 11);
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
-        let marker = L.marker([${location.latitudeDegrees}, ${location.longitudeDegrees}]).addTo(map);
-        function setPin(lat, lng) {
-          if (!marker) marker = L.marker([lat, lng]).addTo(map);
-          marker.setLatLng([lat, lng]);
+        val marker = Marker(this).apply {
+            position = GeoPoint(location.latitudeDegrees, location.longitudeDegrees)
+            title = "Selected location"
+            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
         }
-        map.on('click', function(event) {
-          setPin(event.latlng.lat, event.latlng.lng);
-          if (window.SatQso) window.SatQso.onMapClick(event.latlng.lat, event.latlng.lng);
-        });
-      </script>
-    </body>
-    </html>
-""".trimIndent()
+        overlays.add(marker)
+        tag = marker
+        overlays.add(
+            MapEventsOverlay(object : MapEventsReceiver {
+                override fun singleTapConfirmedHelper(point: GeoPoint): Boolean {
+                    onLocationSelected(point.latitude, point.longitude)
+                    marker.position = point
+                    invalidate()
+                    return true
+                }
+
+                override fun longPressHelper(point: GeoPoint): Boolean = false
+            }),
+        )
+        onResume()
+    }
+}
 
 private fun Double.formatMapCoordinate(): String = "%.5f".format(this)
 

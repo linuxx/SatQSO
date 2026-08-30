@@ -15,6 +15,7 @@ playServicesLocation = "21.3.0"
 okhttp = "5.1.0"
 orekit = "13.1.7"
 workManager = "2.11.2"
+osmdroid = "6.1.20"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -40,6 +41,7 @@ play-services-location = { group = "com.google.android.gms", name = "play-servic
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 orekit = { group = "org.orekit", name = "orekit", version.ref = "orekit" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workManager" }
+osmdroid-android = { group = "org.osmdroid", name = "osmdroid-android", version.ref = "osmdroid" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

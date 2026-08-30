@@ -80,6 +80,7 @@ dependencies {
     implementation(libs.orekit)
     implementation(libs.play.services.location)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.osmdroid.android)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(platform(libs.androidx.compose.bom))
