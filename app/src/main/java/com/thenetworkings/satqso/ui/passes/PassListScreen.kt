@@ -696,7 +696,7 @@ private fun PassDetail(
         item { FrequencyCard(pass = pass, accent = accent) }
         item {
             DetailSection(
-                title = "Operating Notes",
+                title = "OPERATING NOTES",
                 rows = listOf(
                     "Modes" to pass.satellite.modes.joinToString { it.label },
                     "NORAD ID" to pass.satellite.noradId.toString(),
@@ -817,22 +817,24 @@ private fun DownlinkTuningTimeline(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(
-                        text = "AOS  ${formatFrequencyHertz(tuningPoints.first().frequencyHertz)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary,
+                    TuningEndpoint(
+                        label = "AOS",
+                        frequencyHertz = tuningPoints.first().frequencyHertz,
+                        color = SignalGreen,
                     )
-                    Text(
-                        text = "LOS  ${formatFrequencyHertz(tuningPoints.last().frequencyHertz)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary,
+                    TuningEndpoint(
+                        label = "LOS",
+                        frequencyHertz = tuningPoints.last().frequencyHertz,
+                        color = Color(0xFFFF4D5A),
+                        alignment = Alignment.End,
                     )
                 }
                 val intervalMinutes = (Duration.between(pass.aos, pass.los).seconds /
                     (tuningPoints.size - 1) / 60.0).roundToInt().coerceAtLeast(1)
                 Text(
                     text = "${tuningPoints.size} tuning points · updates about every $intervalMinutes min",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
                     color = TextSecondary,
                 )
                 DopplerFrequencyTable(
@@ -845,17 +847,34 @@ private fun DownlinkTuningTimeline(
 }
 
 @Composable
+private fun TuningEndpoint(
+    label: String,
+    frequencyHertz: Long,
+    color: Color,
+    alignment: Alignment.Horizontal = Alignment.Start,
+) {
+    Column(horizontalAlignment = alignment) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = color,
+        )
+        Text(
+            text = formatFrequencyHertz(frequencyHertz),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = color,
+        )
+    }
+}
+
+@Composable
 private fun DopplerFrequencyTable(
     points: List<DownlinkTuningPoint>,
     selectedPoint: DownlinkTuningPoint,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = "PROGRAM RADIO",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = TextPrimary,
-        )
         Surface(
             color = SpaceSurfaceHigh.copy(alpha = 0.72f),
             shape = MaterialTheme.shapes.small,
@@ -1102,9 +1121,10 @@ private fun PassTimeline(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "Pass timeline",
+                text = "PASS TIMELINE",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
+                color = CyanPrimary,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 TimelineLegend(label = "Elevation", color = OrbitOrange)
@@ -1195,8 +1215,16 @@ private fun PassTimeline(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(timeFormatter.format(pass.aos), style = MaterialTheme.typography.labelSmall)
-                    Text(timeFormatter.format(pass.los), style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        timeFormatter.format(pass.aos),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = TextSecondary,
+                    )
+                    Text(
+                        timeFormatter.format(pass.los),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = TextSecondary,
+                    )
                 }
             }
         }
@@ -1445,7 +1473,7 @@ private fun OrbitPreviewCard(
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 18.dp),
+                        .padding(bottom = 2.dp),
                     color = SpaceSurfaceHigh.copy(alpha = 0.96f),
                     shape = MaterialTheme.shapes.small,
                 ) {
@@ -1540,6 +1568,7 @@ private fun DetailSection(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
+                color = CyanPrimary,
             )
             rows.forEach { (label, value) ->
                 DetailRow(label = label, value = value)
@@ -1554,11 +1583,12 @@ private fun DetailRow(label: String, value: String) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = TextSecondary,
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium,
         )
     }
 }

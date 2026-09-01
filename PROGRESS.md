@@ -1,6 +1,6 @@
 # SatQSO Progress
 
-Release: `1.2.1` (version code `4`)
+Release: `1.2.2` (version code `5`)
 
 ## Shipped
 
@@ -14,7 +14,7 @@ Release: `1.2.1` (version code `4`)
 - Minimum-elevation and operating-mode filters.
 - Compass-oriented pass path, device heading, live satellite marker, and azimuth/elevation timeline.
 - Pass-detail compass rim aligned with its tick marks.
-- Doppler-corrected downlink tuning timeline with duration-based steps, a radar tune prompt, and a programmable time/frequency table.
+- Doppler-corrected downlink tuning timeline with duration-based steps, a radar tune prompt, color-coded AOS/LOS frequencies, and a programmable time/frequency table.
 - Compact frequency, tone, mode, pass timing, and satellite information panels.
 - Screen-awake behavior while the app is open.
 - Signed release builds with R8 and resource shrinking.
