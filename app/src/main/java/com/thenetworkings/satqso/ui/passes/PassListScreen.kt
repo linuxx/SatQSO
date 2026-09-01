@@ -356,7 +356,6 @@ private fun PassList(
             delay(1_000)
         }
     }
-    val displayPasses = listOf(repeatingDemoPass(currentTime)) + passes
     PullToRefreshBox(
         isRefreshing = isRefreshing,
         onRefresh = onRefresh,
@@ -384,7 +383,7 @@ private fun PassList(
                 ) {
                     Text(
                         text = "PASSES",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.headlineSmall,
                         color = CyanPrimary,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -403,7 +402,7 @@ private fun PassList(
                 EmptyUpcomingState()
             }
         } else {
-            items(displayPasses) { pass ->
+            items(passes) { pass ->
                 PassCard(
                     pass = pass,
                     currentTime = currentTime,
@@ -413,30 +412,6 @@ private fun PassList(
         }
         }
     }
-}
-
-// Temporary visual test pass: it cycles every 90 seconds so the active progress bar is easy to observe.
-private fun repeatingDemoPass(now: Instant): PassSummary {
-    val cycleMillis = 90_000L
-    val passMillis = 87_000L
-    val cycleStart = now.toEpochMilli() / cycleMillis * cycleMillis
-    return PassSummary(
-        satellite = Satellite(
-            noradId = -1,
-            name = "Demo Pass",
-            modes = listOf(OperatingMode.FmVoice),
-            uplink = "145.850 MHz FM",
-            downlink = "436.795 MHz FM",
-            notes = "Temporary repeating pass for testing the live progress indicator.",
-            altitudeKm = 420,
-            owner = "SatQSO",
-        ),
-        aos = Instant.ofEpochMilli(cycleStart),
-        los = Instant.ofEpochMilli(cycleStart + passMillis),
-        maxElevationDegrees = 72.0,
-        aosAzimuthDegrees = 180.0,
-        losAzimuthDegrees = 45.0,
-    )
 }
 
 @Composable
@@ -687,7 +662,7 @@ private fun PassDetail(
     LaunchedEffect(Unit) {
         while (true) {
             currentTime = Instant.now()
-            delay(1_000)
+            delay(100)
         }
     }
     DisposableEffect(orientationRepository) {
@@ -1018,12 +993,13 @@ private fun OrbitPreviewCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(0.98f)
+            .aspectRatio(0.84f)
             .border(1.dp, SpaceBorder, MaterialTheme.shapes.medium),
         colors = CardDefaults.cardColors(containerColor = SpaceSurfaceHigh.copy(alpha = 0.82f)),
         shape = MaterialTheme.shapes.medium,
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val status = passStatusLabel(pass, currentTime)
             val radarRadius = minOf(maxWidth, maxHeight) * 0.39f
             val radarCenterX = maxWidth / 2f
             val radarCenterY = maxHeight / 2f
@@ -1174,13 +1150,6 @@ private fun OrbitPreviewCard(
                 Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
                     Text("AOS", color = SignalGreen, style = MaterialTheme.typography.labelLarge)
                     Text(timeFormatter.format(pass.aos), fontWeight = FontWeight.Bold)
-                    if (currentTime.isBefore(pass.aos)) {
-                        Text(
-                            text = formatCountdown(Duration.between(currentTime, pass.aos)),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = TextSecondary,
-                        )
-                    }
                 }
             }
             Surface(
@@ -1197,10 +1166,27 @@ private fun OrbitPreviewCard(
                 ) {
                     Text("LOS", color = Color(0xFFFF4D5A), style = MaterialTheme.typography.labelLarge)
                     Text(timeFormatter.format(pass.los), fontWeight = FontWeight.Bold)
+                }
+            }
+            val countdown = when {
+                currentTime.isBefore(pass.aos) -> Duration.between(currentTime, pass.aos)
+                currentTime.isBefore(pass.los) -> Duration.between(currentTime, pass.los)
+                else -> null
+            }
+            if (countdown != null) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 14.dp),
+                    color = SpaceSurfaceHigh.copy(alpha = 0.96f),
+                    shape = MaterialTheme.shapes.small,
+                ) {
                     Text(
-                        formatCountdown(Duration.between(currentTime, pass.los)),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = TextSecondary,
+                        text = formatCountdown(countdown),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary,
                     )
                 }
             }
@@ -1213,13 +1199,18 @@ private fun OrbitPreviewCard(
                 Text("DURATION", color = TextSecondary, style = MaterialTheme.typography.labelLarge)
                 Text(formatDuration(pass.aos, pass.los), fontWeight = FontWeight.Bold)
             }
-            StatusPill(
-                text = passStatusLabel(pass, currentTime),
-                accent = accent,
+            Column(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(18.dp),
-            )
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                StatusPill(
+                    text = status,
+                    accent = statusAccent(status, accent),
+                    progress = passProgress(pass, currentTime).takeIf { status == "Active" },
+                )
+            }
         }
     }
 }
@@ -2008,8 +1999,8 @@ private fun Double.formatMapCoordinate(): String = "%.5f".format(this)
 
 private fun formatStartCountdown(currentTime: Instant, start: Instant): String {
     val seconds = Duration.between(currentTime, start).seconds.coerceAtLeast(0L)
+    if (seconds < 60L) return "00:%02d".format(seconds)
     val minutes = (seconds + 59L) / 60L
-    if (minutes < 1L) return "less than a minute"
     val hours = minutes / 60L
     val remainingMinutes = minutes % 60L
     return when {
