@@ -104,18 +104,20 @@ class PassListViewModel(
                 val end = start.plus(Duration.ofHours(_uiState.value.lookAheadHours.toLong()))
                 location to passRepository.passes(location, start, end)
             }.onSuccess { (location, passes) ->
-                allPasses = passes
-                passCache?.write(CachedPasses(passes, location, Instant.now()))
+                val currentTime = Instant.now()
+                val visiblePasses = passes.filter { it.los.isAfter(currentTime) }
+                allPasses = visiblePasses
+                passCache?.write(CachedPasses(visiblePasses, location, currentTime))
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         observerLocation = location,
                         isManualLocation = locationRepository.hasManualLocation(),
-                        passes = passes.filterByPassFilters(
+                        passes = visiblePasses.filterByPassFilters(
                             minimumElevationDegrees = it.minimumElevationDegrees,
                             operatingModes = it.selectedOperatingModes,
                         ),
-                        unfilteredPassCount = passes.size,
+                        unfilteredPassCount = visiblePasses.size,
                         errorMessage = null,
                     )
                 }

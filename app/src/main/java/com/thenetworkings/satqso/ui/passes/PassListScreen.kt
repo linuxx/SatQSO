@@ -485,6 +485,7 @@ private fun PassCard(
                     StatusPill(
                         text = status,
                         accent = statusAccent(status, accent),
+                        modifier = Modifier.width(100.dp).height(44.dp),
                         progress = passProgress(pass, currentTime).takeIf { status == "Active" },
                     )
                 }
@@ -1355,9 +1356,11 @@ private fun StatusPill(
         contentColor = accent,
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(3.dp),
+            verticalArrangement = if (progress == null) Arrangement.Center else Arrangement.spacedBy(3.dp),
         ) {
             Text(text = text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             if (progress != null) {
@@ -2001,16 +2004,7 @@ private fun formatStartCountdown(currentTime: Instant, start: Instant): String {
     val seconds = Duration.between(currentTime, start).seconds.coerceAtLeast(0L)
     if (seconds < 60L) return "00:%02d".format(seconds)
     val minutes = (seconds + 59L) / 60L
-    val hours = minutes / 60L
-    val remainingMinutes = minutes % 60L
-    return when {
-        hours > 0L && remainingMinutes > 0L ->
-            "$hours hr $remainingMinutes min"
-        hours > 0L ->
-            "$hours hr"
-        else ->
-            "$minutes min"
-    }
+    return "$minutes min"
 }
 
 @Composable
