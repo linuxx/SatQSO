@@ -58,7 +58,8 @@ class LocationRepository(
 
         val location = runCatching {
             val cached = fusedLocationClient.lastLocation.await()
-            cached ?: fusedLocationClient
+            cached?.takeIf { System.currentTimeMillis() - it.time < LOCATION_REFRESH_INTERVAL_MILLIS }
+                ?: fusedLocationClient
                 .getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, CancellationTokenSource().token)
                 .await()
                 ?: error("Unable to obtain current location.")
@@ -81,6 +82,7 @@ class LocationRepository(
     }
 
     private companion object {
+        const val LOCATION_REFRESH_INTERVAL_MILLIS = 60 * 60 * 1_000L
         const val PREFERENCES_NAME = "manual_location"
         const val LATITUDE_KEY = "latitude"
         const val LONGITUDE_KEY = "longitude"

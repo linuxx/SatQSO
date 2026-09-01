@@ -4,7 +4,7 @@ SatQSO is a native Android application written in Kotlin with Jetpack Compose, M
 
 ## Layers
 
-- `data`: TLE downloads, caching, repositories, preferences, and WorkManager jobs.
+- `data`: TLE and pass downloads, persistence caches, repositories, preferences, and WorkManager jobs.
 - `domain`: satellite models, TLE parsing, filters, and pass prediction.
 - `location`: Android location, permission, and orientation-sensor handling.
 - `ui`: Compose screens, view models, UI state, formatting, and theme.
@@ -19,10 +19,11 @@ Composables do not perform orbital calculations or call Android location APIs. `
 - Feed failures are handled independently; one failed source does not discard successful responses from the others.
 - Successful TLE data is cached for 12 hours. Stale cached data remains available when all network sources fail.
 - Passes are calculated locally. No pass-prediction service is required.
+- The latest calculated pass set and observer location are persisted so the UI can render immediately on launch while a refresh runs.
 
 ## Location
 
-The observer location can come from GPS, decimal coordinates, or a saved OpenStreetMap pin. Location and permission handling remain in the `location` layer; saved observer preferences remain in `data`.
+The observer location can come from GPS, decimal coordinates, or a saved OpenStreetMap pin. Location and permission handling remain in the `location` layer; saved observer preferences remain in `data`. Device GPS fixes older than one hour are replaced with a current balanced-power request; manual locations are never replaced automatically.
 
 ## Build
 

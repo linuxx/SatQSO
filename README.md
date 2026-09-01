@@ -9,7 +9,8 @@ SatQSO is an Android pass planner for amateur-radio satellites. It calculates pa
 - GPS, decimal-coordinate entry, and an OpenStreetMap location picker.
 - Four- and six-character Maidenhead locators.
 - Minimum-elevation, operating-mode, and 24-hour to 7-day filters.
-- Upcoming-pass start times and live countdowns.
+- Cached pass list shown immediately on launch, with pull-to-refresh and live refresh status.
+- Upcoming, active, and passed pass statuses with live countdowns.
 - Compass-oriented sky path with live satellite position.
 - Azimuth and elevation timeline.
 - Uplink, downlink, tone, mode, and satellite operating notes.
@@ -43,7 +44,7 @@ SatQSO is an Android pass planner for amateur-radio satellites. It calculates pa
 
 [Download the latest APK from GitHub Releases](https://github.com/linuxx/SatQSO/releases).
 
-SatQSO requires Android 7.0 (API 24) or newer. Location permission enables GPS-based predictions; internet access updates TLE data. Saved coordinates and cached TLEs can be used offline.
+SatQSO requires Android 7.0 (API 24) or newer. Location permission enables GPS-based predictions; internet access updates TLE data. Cached passes and TLEs can be shown offline. GPS fixes older than one hour are refreshed when the app recalculates passes.
 
 Tap the location panel to select a point on the map. `Reset to GPS` restores the device location. An amber `GPS • MODIFIED` label identifies a saved map location.
 

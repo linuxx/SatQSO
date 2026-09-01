@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.thenetworkings.satqso.data.PassDisplayPreferences
 import com.thenetworkings.satqso.data.PassDataSource
 import com.thenetworkings.satqso.domain.ObserverLocation
+import com.thenetworkings.satqso.data.CachedPasses
+import com.thenetworkings.satqso.data.PassCache
 import com.thenetworkings.satqso.domain.OperatingMode
 import com.thenetworkings.satqso.domain.PassSummary
 import com.thenetworkings.satqso.location.LocationDataSource
@@ -38,6 +40,7 @@ class PassListViewModel(
     private val locationRepository: LocationDataSource,
     private val passRepository: PassDataSource,
     private val passDisplayPreferences: PassDisplayPreferences,
+    private val passCache: PassCache? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(PassListUiState())
     val uiState: StateFlow<PassListUiState> = _uiState.asStateFlow()
@@ -59,6 +62,18 @@ class PassListViewModel(
                 lookAheadHours = lookAheadHours,
             )
         }
+        passCache?.read()?.let { cached ->
+            allPasses = cached.passes
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    needsLocationPermission = false,
+                    passes = cached.passes.filterByPassFilters(it.minimumElevationDegrees, it.selectedOperatingModes),
+                    observerLocation = cached.observerLocation,
+                    unfilteredPassCount = cached.passes.size,
+                )
+            }
+        }
         refresh()
     }
 
@@ -67,7 +82,7 @@ class PassListViewModel(
             _uiState.update {
                 it.copy(
                     isLoading = false,
-                    needsLocationPermission = true,
+                    needsLocationPermission = _uiState.value.observerLocation == null,
                     errorMessage = null,
                 )
             }
@@ -85,11 +100,12 @@ class PassListViewModel(
 
             runCatching {
                 val location = locationRepository.currentLocation()
-                val start = Instant.now()
+                val start = Instant.now().minus(Duration.ofHours(2))
                 val end = start.plus(Duration.ofHours(_uiState.value.lookAheadHours.toLong()))
                 location to passRepository.passes(location, start, end)
             }.onSuccess { (location, passes) ->
                 allPasses = passes
+                passCache?.write(CachedPasses(passes, location, Instant.now()))
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -223,9 +239,10 @@ class PassListViewModel(
         private val locationRepository: LocationDataSource,
         private val passRepository: PassDataSource,
         private val passDisplayPreferences: PassDisplayPreferences,
+        private val passCache: PassCache? = null,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            PassListViewModel(locationRepository, passRepository, passDisplayPreferences) as T
+            PassListViewModel(locationRepository, passRepository, passDisplayPreferences, passCache) as T
     }
 }

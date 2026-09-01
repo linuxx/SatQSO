@@ -9,6 +9,8 @@ Release: `1.2.1` (version code `4`)
 - GPS, decimal-coordinate entry, and OpenStreetMap pin selection with GPS reset.
 - Modified-location indicator and four- and six-character Maidenhead locators.
 - Upcoming-pass list with live countdowns and 24-hour, 2-day, 4-day, and 7-day windows.
+- Cached pass list on launch, pull-to-refresh, and live Upcoming, Active, and Passed statuses.
+- GPS refresh when the last device fix is older than one hour.
 - Minimum-elevation and operating-mode filters.
 - Compass-oriented pass path, device heading, live satellite marker, and azimuth/elevation timeline.
 - Compact frequency, tone, mode, pass timing, and satellite information panels.
@@ -23,7 +25,7 @@ Release: `1.2.1` (version code `4`)
 - Installed and launched the release APK on a connected Pixel device.
 - Checked launch, GPS display, Maidenhead locators, filters, and pass details on-device.
 
-Manual coordinate entry, complete network failure, stale-cache loading, and Orekit resource loading still need isolated runtime checks.
+Manual coordinate entry, complete network failure, cached pass loading, stale GPS refresh, and Orekit resource loading still need isolated runtime checks.
 
 ## Next
 

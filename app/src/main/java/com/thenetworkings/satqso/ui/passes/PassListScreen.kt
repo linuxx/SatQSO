@@ -38,6 +38,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -47,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -69,6 +71,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -115,6 +118,7 @@ fun PassListRoute(dependencies: SatQsoDependencies) {
             locationRepository = dependencies.locationRepository,
             passRepository = dependencies.passRepository,
             passDisplayPreferences = dependencies.passDisplayPreferences,
+            passCache = dependencies.passCache,
         ),
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -240,7 +244,11 @@ fun PassListScreen(
                     if (uiState.selectedPass == null) {
                         HeaderActionButton(text = "Filter", onClick = onShowFilters)
                         Spacer(Modifier.width(8.dp))
-                        HeaderActionButton(text = "Refresh", onClick = onRefresh)
+                        HeaderActionButton(
+                            text = if (uiState.isLoading) "Refreshing" else "Refresh",
+                            onClick = onRefresh,
+                            isLoading = uiState.isLoading,
+                        )
                     } else {
                         Text(
                             text = uiState.observerLocation?.maidenheadGrid() ?: "----",
@@ -274,7 +282,7 @@ fun PassListScreen(
                 } else {
                     when {
                         uiState.needsLocationPermission -> PermissionState(onRequestLocation, onManualLocation)
-                        uiState.isLoading -> LoadingState()
+                        uiState.isLoading && uiState.passes.isEmpty() -> LoadingState()
                         uiState.errorMessage != null -> ErrorState(
                             message = uiState.errorMessage,
                             onRefresh = onRefresh,
@@ -291,6 +299,8 @@ fun PassListScreen(
                             lookAheadHours = uiState.lookAheadHours,
                             onPassSelected = onPassSelected,
                             onLocationClick = onLocationClick,
+                            isRefreshing = uiState.isLoading,
+                            onRefresh = onRefresh,
                         )
                     }
                 }
@@ -336,6 +346,8 @@ private fun PassList(
     lookAheadHours: Int,
     onPassSelected: (PassSummary) -> Unit,
     onLocationClick: () -> Unit,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
 ) {
     var currentTime by remember { mutableStateOf(Instant.now()) }
     LaunchedEffect(Unit) {
@@ -344,12 +356,18 @@ private fun PassList(
             delay(1_000)
         }
     }
-    val upcomingPasses = passes.filter { it.aos.isAfter(currentTime) }
-    LazyColumn(
+    val displayPasses = listOf(repeatingDemoPass(currentTime)) + passes
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        indicator = {},
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
         item {
             LocationSummaryCard(
                 observerLocation = observerLocation,
@@ -365,7 +383,7 @@ private fun PassList(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
-                        text = "UPCOMING",
+                        text = "PASSES",
                         style = MaterialTheme.typography.titleMedium,
                         color = CyanPrimary,
                         fontWeight = FontWeight.SemiBold,
@@ -373,19 +391,19 @@ private fun PassList(
                     Text(
                         modifier = Modifier.weight(1f).padding(start = 8.dp),
                         text = "Next ${lookAheadLabel(lookAheadHours)} - " +
-                            passCountLabel(upcomingPasses.size, unfilteredPassCount),
+                            passCountLabel(passes.size, unfilteredPassCount),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         }
-        if (upcomingPasses.isEmpty()) {
+        if (passes.isEmpty()) {
             item {
                 EmptyUpcomingState()
             }
         } else {
-            items(upcomingPasses) { pass ->
+            items(displayPasses) { pass ->
                 PassCard(
                     pass = pass,
                     currentTime = currentTime,
@@ -393,7 +411,32 @@ private fun PassList(
                 )
             }
         }
+        }
     }
+}
+
+// Temporary visual test pass: it cycles every 90 seconds so the active progress bar is easy to observe.
+private fun repeatingDemoPass(now: Instant): PassSummary {
+    val cycleMillis = 90_000L
+    val passMillis = 87_000L
+    val cycleStart = now.toEpochMilli() / cycleMillis * cycleMillis
+    return PassSummary(
+        satellite = Satellite(
+            noradId = -1,
+            name = "Demo Pass",
+            modes = listOf(OperatingMode.FmVoice),
+            uplink = "145.850 MHz FM",
+            downlink = "436.795 MHz FM",
+            notes = "Temporary repeating pass for testing the live progress indicator.",
+            altitudeKm = 420,
+            owner = "SatQSO",
+        ),
+        aos = Instant.ofEpochMilli(cycleStart),
+        los = Instant.ofEpochMilli(cycleStart + passMillis),
+        maxElevationDegrees = 72.0,
+        aosAzimuthDegrees = 180.0,
+        losAzimuthDegrees = 45.0,
+    )
 }
 
 @Composable
@@ -405,7 +448,7 @@ private fun EmptyUpcomingState() {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "No upcoming passes in this window",
+            text = "No passes in this window",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.SemiBold,
         )
@@ -463,21 +506,39 @@ private fun PassCard(
                             color = accent,
                         )
                     }
+                    val status = passStatusLabel(pass, currentTime)
                     StatusPill(
-                        text = "UPCOMING",
-                        accent = accent,
+                        text = status,
+                        accent = statusAccent(status, accent),
+                        progress = passProgress(pass, currentTime).takeIf { status == "Active" },
                     )
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    val status = passStatusLabel(pass, currentTime)
+                    if (status != "Passed") {
+                        PassDatum(
+                            label = if (status == "Active") "ENDS IN" else "STARTS AT",
+                            value = if (status == "Active") {
+                                "${timeFormatter.format(pass.los)} (${formatCountdown(Duration.between(currentTime, pass.los))})"
+                            } else {
+                                "${timeFormatter.format(pass.aos)} (${formatStartCountdown(currentTime, pass.aos)})"
+                            },
+                            modifier = Modifier.weight(1.35f),
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1.35f))
+                    }
                     PassDatum(
-                        label = "STARTS AT",
-                        value = "${timeFormatter.format(pass.aos)} (${formatStartCountdown(currentTime, pass.aos)})",
+                        label = "MAX ELEV.", value = "${pass.maxElevationDegrees.roundToInt()} deg", color = accent,
+                        modifier = Modifier.weight(0.85f),
                     )
-                    PassDatum("MAX ELEV.", "${pass.maxElevationDegrees.roundToInt()} deg", accent)
-                    PassDatum("DIRECTION", passDirection(pass), accent)
+                    PassDatum(
+                        label = "DIRECTION", value = passDirection(pass), color = accent,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
         }
@@ -594,18 +655,23 @@ private fun PassDatum(
     label: String,
     value: String,
     color: Color = MaterialTheme.colorScheme.onSurface,
+    modifier: Modifier = Modifier,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
             text = value,
             style = MaterialTheme.typography.titleMedium,
             color = color,
             fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -1289,6 +1355,7 @@ private fun StatusPill(
     text: String,
     accent: Color,
     modifier: Modifier = Modifier,
+    progress: Float? = null,
 ) {
     Surface(
         modifier = modifier.border(1.dp, accent.copy(alpha = 0.8f), CircleShape),
@@ -1296,12 +1363,21 @@ private fun StatusPill(
         color = accent.copy(alpha = 0.13f),
         contentColor = accent,
     ) {
-        Text(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-            text = text,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-        )
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(text = text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            if (progress != null) {
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.width(64.dp).height(3.dp),
+                    color = accent,
+                    trackColor = accent.copy(alpha = 0.2f),
+                )
+            }
+        }
     }
 }
 
@@ -1309,6 +1385,7 @@ private fun StatusPill(
 private fun HeaderActionButton(
     text: String,
     onClick: () -> Unit,
+    isLoading: Boolean = false,
 ) {
     Surface(
         modifier = Modifier
@@ -1318,12 +1395,16 @@ private fun HeaderActionButton(
         color = CyanPrimary.copy(alpha = 0.1f),
         contentColor = CyanPrimary,
     ) {
-        Text(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-            text = text,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = if (isLoading) 8.dp else 12.dp, vertical = 7.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+            }
+            Text(text = text, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+        }
     }
 }
 
@@ -1745,9 +1826,21 @@ private fun passDirection(pass: PassSummary): String =
     "${compassPoint(pass.aosAzimuthDegrees)} -> ${compassPoint(pass.losAzimuthDegrees)}"
 
 private fun passStatusLabel(pass: PassSummary, currentTime: Instant): String = when {
-    currentTime.isBefore(pass.aos) -> "UPCOMING"
-    currentTime.isBefore(pass.los) -> "ACTIVE"
-    else -> "COMPLETE"
+    currentTime.isBefore(pass.aos) -> "Upcoming"
+    currentTime.isBefore(pass.los) -> "Active"
+    else -> "Passed"
+}
+
+private fun statusAccent(status: String, fallback: Color): Color = when (status) {
+    "Active" -> SignalGreen
+    "Passed" -> Color(0xFFFF4D5A)
+    else -> fallback
+}
+
+private fun passProgress(pass: PassSummary, currentTime: Instant): Float {
+    val duration = Duration.between(pass.aos, pass.los).toMillis().coerceAtLeast(1L)
+    val elapsed = Duration.between(pass.aos, currentTime).toMillis()
+    return (elapsed.toDouble() / duration).coerceIn(0.0, 1.0).toFloat()
 }
 
 private fun passAccent(pass: PassSummary): Color = when {

@@ -4,7 +4,7 @@
 
 - [ ] Test decimal-coordinate entry on a physical device.
 - [ ] Test complete network failure with a populated TLE cache.
-- [ ] Test stale-cache loading after the 12-hour freshness window.
+- [ ] Test cached pass loading and stale GPS refresh after the one-hour freshness window.
 - [ ] Confirm packaged Orekit time data loads in a clean install.
 
 ## Data
