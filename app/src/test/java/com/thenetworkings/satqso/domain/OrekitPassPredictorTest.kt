@@ -1,6 +1,7 @@
 package com.thenetworkings.satqso.domain
 
 import java.time.Instant
+import kotlin.math.abs
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -37,6 +38,7 @@ class OrekitPassPredictorTest {
         assertTrue(passes.isNotEmpty())
         assertTrue(passes.all { it.maxElevationDegrees > 0.0 })
         assertTrue(passes.any { it.track.size >= 2 })
+        assertTrue(passes.flatMap { it.track }.any { abs(it.rangeRateMetersPerSecond) > 1.0 })
         assertTrue(
             passes.any { pass ->
                 pass.aos.epochSecond % 60L != 0L || pass.los.epochSecond % 60L != 0L

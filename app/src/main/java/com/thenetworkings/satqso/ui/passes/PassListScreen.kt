@@ -79,11 +79,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.thenetworkings.satqso.R
 import com.thenetworkings.satqso.SatQsoDependencies
+import com.thenetworkings.satqso.domain.DownlinkTuningPoint
 import com.thenetworkings.satqso.domain.ObserverLocation
 import com.thenetworkings.satqso.domain.OperatingMode
 import com.thenetworkings.satqso.domain.PassSummary
 import com.thenetworkings.satqso.domain.PassTrackPoint
 import com.thenetworkings.satqso.domain.Satellite
+import com.thenetworkings.satqso.domain.downlinkCenterFrequencyHertz
+import com.thenetworkings.satqso.domain.downlinkTuningPoints
 import com.thenetworkings.satqso.ui.theme.CyanPrimary
 import com.thenetworkings.satqso.ui.theme.CyanSecondary
 import com.thenetworkings.satqso.ui.theme.OrbitBlue
@@ -101,6 +104,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -685,6 +689,7 @@ private fun PassDetail(
             )
         }
         item { PassSummaryCard(pass = pass, accent = accent, currentTime = currentTime) }
+        item { DownlinkTuningTimeline(pass = pass, currentTime = currentTime) }
         item {
             PassTimeline(pass = pass, accent = accent, currentTime = currentTime)
         }
@@ -730,6 +735,232 @@ private fun PassSummaryCard(
             "CURRENT",
             "${currentElevation.roundToInt()} deg",
             "${formatAzimuth(currentAzimuth)}",
+        )
+    }
+}
+
+@Composable
+private fun DownlinkTuningTimeline(
+    pass: PassSummary,
+    currentTime: Instant,
+) {
+    val tuningPoints = remember(pass) { pass.downlinkTuningPoints() }
+    val nominalFrequencyHertz = remember(pass) { downlinkCenterFrequencyHertz(pass.satellite.downlink) }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, SpaceBorder, MaterialTheme.shapes.medium),
+        colors = CardDefaults.cardColors(containerColor = SpaceSurface.copy(alpha = 0.9f)),
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "DOWNLINK TUNING",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = CyanPrimary,
+            )
+            if (tuningPoints.size < 2 || nominalFrequencyHertz == null) {
+                Text(
+                    text = "A numeric downlink frequency and pass track are required for Doppler tuning.",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            } else {
+                val markerTime = when {
+                    currentTime.isBefore(pass.aos) -> pass.aos
+                    currentTime.isAfter(pass.los) -> pass.los
+                    else -> currentTime
+                }
+                val selectedPoint = tuningPoints.lastOrNull { !it.instant.isAfter(markerTime) }
+                    ?: tuningPoints.first()
+                val label = when {
+                    currentTime.isBefore(pass.aos) -> "STARTING TUNE"
+                    currentTime.isAfter(pass.los) -> "FINAL TUNE"
+                    else -> "TUNE NOW"
+                }
+                Surface(
+                    color = CyanPrimary.copy(alpha = 0.12f),
+                    shape = MaterialTheme.shapes.small,
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column {
+                            Text(label, style = MaterialTheme.typography.titleMedium, color = TextSecondary)
+                            Text(
+                                text = formatFrequencyHertz(selectedPoint.frequencyHertz),
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = CyanPrimary,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                        Text(
+                            text = timeFormatter.format(selectedPoint.instant),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = TextPrimary,
+                        )
+                    }
+                }
+                DopplerFrequencyChart(
+                    points = tuningPoints,
+                    markerTime = markerTime,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = "AOS  ${formatFrequencyHertz(tuningPoints.first().frequencyHertz)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary,
+                    )
+                    Text(
+                        text = "LOS  ${formatFrequencyHertz(tuningPoints.last().frequencyHertz)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary,
+                    )
+                }
+                val intervalMinutes = (Duration.between(pass.aos, pass.los).seconds /
+                    (tuningPoints.size - 1) / 60.0).roundToInt().coerceAtLeast(1)
+                Text(
+                    text = "${tuningPoints.size} tuning points · updates about every $intervalMinutes min",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TextSecondary,
+                )
+                DopplerFrequencyTable(
+                    points = tuningPoints,
+                    selectedPoint = selectedPoint,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DopplerFrequencyTable(
+    points: List<DownlinkTuningPoint>,
+    selectedPoint: DownlinkTuningPoint,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = "PROGRAM RADIO",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = TextPrimary,
+        )
+        Surface(
+            color = SpaceSurfaceHigh.copy(alpha = 0.72f),
+            shape = MaterialTheme.shapes.small,
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "TIME",
+                        modifier = Modifier.weight(0.4f),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = TextSecondary,
+                    )
+                    Text(
+                        text = "DOWNLINK (RX)",
+                        modifier = Modifier.weight(0.6f),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = TextSecondary,
+                    )
+                }
+                points.forEach { point ->
+                    val isSelected = point.instant == selectedPoint.instant
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(if (isSelected) CyanPrimary.copy(alpha = 0.12f) else Color.Transparent)
+                            .padding(vertical = 6.dp, horizontal = 4.dp),
+                    ) {
+                        Text(
+                            text = timeFormatter.format(point.instant),
+                            modifier = Modifier.weight(0.4f),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (isSelected) SignalGreen else TextPrimary,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        )
+                        Text(
+                            text = formatFrequencyHertz(point.frequencyHertz),
+                            modifier = Modifier.weight(0.6f),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (isSelected) CyanPrimary else TextPrimary,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DopplerFrequencyChart(
+    points: List<DownlinkTuningPoint>,
+    markerTime: Instant,
+) {
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(128.dp),
+    ) {
+        val left = 8.dp.toPx()
+        val right = 8.dp.toPx()
+        val top = 12.dp.toPx()
+        val bottom = 12.dp.toPx()
+        val width = (size.width - left - right).coerceAtLeast(1f)
+        val height = (size.height - top - bottom).coerceAtLeast(1f)
+        val start = points.first().instant.toEpochMilli().toFloat()
+        val end = points.last().instant.toEpochMilli().toFloat()
+        val duration = (end - start).coerceAtLeast(1f)
+        val low = points.minOf { it.frequencyHertz }.toDouble()
+        val high = points.maxOf { it.frequencyHertz }.toDouble()
+        val frequencyPadding = maxOf(1_000.0, (high - low) * 0.15)
+        val minFrequency = low - frequencyPadding
+        val frequencySpan = (high - low + frequencyPadding * 2.0).coerceAtLeast(1.0)
+        fun x(instant: Instant) = left +
+            ((instant.toEpochMilli().toFloat() - start) / duration) * width
+        fun y(frequencyHertz: Long) = top +
+            (1f - ((frequencyHertz - minFrequency) / frequencySpan).toFloat()) * height
+
+        listOf(0.25f, 0.5f, 0.75f).forEach { fraction ->
+            val gridY = top + height * fraction
+            drawLine(
+                color = SpaceBorder.copy(alpha = 0.45f),
+                start = Offset(left, gridY),
+                end = Offset(left + width, gridY),
+                strokeWidth = 1.dp.toPx(),
+            )
+        }
+        val path = Path()
+        points.forEachIndexed { index, point ->
+            val position = Offset(x(point.instant), y(point.frequencyHertz))
+            if (index == 0) path.moveTo(position.x, position.y) else path.lineTo(position.x, position.y)
+        }
+        drawPath(path, color = CyanPrimary, style = Stroke(width = 3.dp.toPx()))
+        points.forEach { point ->
+            drawCircle(
+                color = CyanSecondary,
+                radius = 4.dp.toPx(),
+                center = Offset(x(point.instant), y(point.frequencyHertz)),
+            )
+        }
+        val markerX = x(markerTime)
+        drawLine(
+            color = SignalGreen.copy(alpha = 0.85f),
+            start = Offset(markerX, top),
+            end = Offset(markerX, top + height),
+            strokeWidth = 2.dp.toPx(),
         )
     }
 }
@@ -799,6 +1030,9 @@ private fun splitFrequencyTone(value: String): Pair<String, String> {
     }
     return parts[0].trim() to parts[1].trim()
 }
+
+private fun formatFrequencyHertz(frequencyHertz: Long): String =
+    String.format(Locale.US, "%.3f MHz", frequencyHertz / 1_000_000.0)
 
 @Composable
 private fun TelemetryCard(
@@ -1001,6 +1235,13 @@ private fun OrbitPreviewCard(
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val status = passStatusLabel(pass, currentTime)
+            val tuningPoints = remember(pass) { pass.downlinkTuningPoints() }
+            val tuningMarkerTime = when {
+                currentTime.isBefore(pass.aos) -> pass.aos
+                currentTime.isAfter(pass.los) -> pass.los
+                else -> currentTime
+            }
+            val currentTuningPoint = tuningPoints.lastOrNull { !it.instant.isAfter(tuningMarkerTime) }
             val radarRadius = minOf(maxWidth, maxHeight) * 0.39f
             val radarCenterX = maxWidth / 2f
             val radarCenterY = maxHeight / 2f
@@ -1200,6 +1441,28 @@ private fun OrbitPreviewCard(
                 Text("DURATION", color = TextSecondary, style = MaterialTheme.typography.labelLarge)
                 Text(formatDuration(pass.aos, pass.los), fontWeight = FontWeight.Bold)
             }
+            currentTuningPoint?.let { tuningPoint ->
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 18.dp),
+                    color = SpaceSurfaceHigh.copy(alpha = 0.96f),
+                    shape = MaterialTheme.shapes.small,
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text("TUNE", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                        Text(
+                            text = formatFrequencyHertz(tuningPoint.frequencyHertz),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = CyanPrimary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
             Column(
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -1357,7 +1620,6 @@ private fun StatusPill(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = if (progress == null) Arrangement.Center else Arrangement.spacedBy(3.dp),

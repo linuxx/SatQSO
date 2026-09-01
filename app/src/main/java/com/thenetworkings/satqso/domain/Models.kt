@@ -50,6 +50,8 @@ data class PassTrackPoint(
     val instant: Instant,
     val elevationDegrees: Double,
     val azimuthDegrees: Double,
+    /** Positive while the satellite is receding from the observer. */
+    val rangeRateMetersPerSecond: Double = 0.0,
 )
 
 interface PassPredictor {

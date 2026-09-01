@@ -15,5 +15,5 @@
 ## Features
 
 - [ ] Add geographic ground-track visualization.
-- [ ] Add Doppler-corrected uplink and downlink frequencies.
+- [ ] Add Doppler-corrected uplink frequencies.
 - [ ] Add preferences for location source, satellites, time format, bands, and modes.

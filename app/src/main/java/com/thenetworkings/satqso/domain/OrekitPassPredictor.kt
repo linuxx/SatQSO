@@ -143,15 +143,27 @@ class OrekitPassPredictor : PassPredictor {
         instant: Instant,
     ): SkySample {
         val date = AbsoluteDate(Date.from(instant), utc)
-        val position = propagator.getPVCoordinates(date, earthFrame).position
+        val satellitePv = propagator.getPVCoordinates(date, earthFrame)
+        val observerPv = observer.getPVCoordinates(date, earthFrame)
+        val position = satellitePv.position
         val elevation = FastMath.toDegrees(observer.getElevation(position, earthFrame, date))
         val azimuth = FastMath.toDegrees(observer.getAzimuth(position, earthFrame, date)).normalizeDegrees()
-        return SkySample(elevationDegrees = elevation, azimuthDegrees = azimuth)
+        val lineOfSight = position.subtract(observerPv.position)
+        val relativeVelocity = satellitePv.velocity.subtract(observerPv.velocity)
+        val rangeRate = if (lineOfSight.norm == 0.0) 0.0 else {
+            lineOfSight.dotProduct(relativeVelocity) / lineOfSight.norm
+        }
+        return SkySample(
+            elevationDegrees = elevation,
+            azimuthDegrees = azimuth,
+            rangeRateMetersPerSecond = rangeRate,
+        )
     }
 
     private data class SkySample(
         val elevationDegrees: Double,
         val azimuthDegrees: Double,
+        val rangeRateMetersPerSecond: Double,
     )
 
     private data class TimedSkySample(
@@ -177,6 +189,7 @@ class OrekitPassPredictor : PassPredictor {
                 instant = timedSample.instant,
                 elevationDegrees = timedSample.sample.elevationDegrees.coerceAtLeast(0.0),
                 azimuthDegrees = timedSample.sample.azimuthDegrees,
+                rangeRateMetersPerSecond = timedSample.sample.rangeRateMetersPerSecond,
             )
         }
 

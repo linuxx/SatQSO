@@ -13,6 +13,8 @@ Release: `1.2.1` (version code `4`)
 - GPS refresh when the last device fix is older than one hour.
 - Minimum-elevation and operating-mode filters.
 - Compass-oriented pass path, device heading, live satellite marker, and azimuth/elevation timeline.
+- Pass-detail compass rim aligned with its tick marks.
+- Doppler-corrected downlink tuning timeline with duration-based steps, a radar tune prompt, and a programmable time/frequency table.
 - Compact frequency, tone, mode, pass timing, and satellite information panels.
 - Screen-awake behavior while the app is open.
 - Signed release builds with R8 and resource shrinking.
@@ -24,6 +26,7 @@ Release: `1.2.1` (version code `4`)
 - `.\gradlew.bat :app:assembleRelease`
 - Installed and launched the release APK on a connected Pixel device.
 - Checked launch, GPS display, Maidenhead locators, filters, and pass details on-device.
+- Installed the debug APK and visually checked the pass-detail compass on a connected Pixel device.
 
 Manual coordinate entry, complete network failure, cached pass loading, stale GPS refresh, and Orekit resource loading still need isolated runtime checks.
 

@@ -19,6 +19,7 @@ Composables do not perform orbital calculations or call Android location APIs. `
 - Feed failures are handled independently; one failed source does not discard successful responses from the others.
 - Successful TLE data is cached for 12 hours. Stale cached data remains available when all network sources fail.
 - Passes are calculated locally. No pass-prediction service is required.
+- Pass tracks retain elevation, azimuth, and line-of-sight range rate so the domain layer can derive Doppler-corrected downlink tuning steps.
 - The latest calculated pass set and observer location are persisted so the UI can render immediately on launch while a refresh runs.
 
 ## Location

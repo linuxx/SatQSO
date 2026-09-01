@@ -52,7 +52,13 @@ private fun PassSummary.toJson(): JSONObject = JSONObject()
         .putNullable("owner", satellite.owner).putNullable("website", satellite.website))
     .put("aos", aos.toEpochMilli()).put("los", los.toEpochMilli())
     .put("maxElevation", maxElevationDegrees).put("aosAzimuth", aosAzimuthDegrees).put("losAzimuth", losAzimuthDegrees)
-    .put("track", JSONArray(track.map { JSONObject().put("instant", it.instant.toEpochMilli()).put("elevation", it.elevationDegrees).put("azimuth", it.azimuthDegrees) }))
+    .put("track", JSONArray(track.map {
+        JSONObject()
+            .put("instant", it.instant.toEpochMilli())
+            .put("elevation", it.elevationDegrees)
+            .put("azimuth", it.azimuthDegrees)
+            .put("rangeRate", it.rangeRateMetersPerSecond)
+    }))
 
 private fun JSONObject.toPassSummary(): PassSummary {
     val satelliteJson = getJSONObject("satellite")
@@ -70,7 +76,14 @@ private fun JSONObject.toPassSummary(): PassSummary {
         ),
         aos = Instant.ofEpochMilli(getLong("aos")), los = Instant.ofEpochMilli(getLong("los")),
         maxElevationDegrees = getDouble("maxElevation"), aosAzimuthDegrees = getDouble("aosAzimuth"), losAzimuthDegrees = getDouble("losAzimuth"),
-        track = List(trackJson.length()) { trackJson.getJSONObject(it).let { point -> PassTrackPoint(Instant.ofEpochMilli(point.getLong("instant")), point.getDouble("elevation"), point.getDouble("azimuth")) } },
+        track = List(trackJson.length()) { trackJson.getJSONObject(it).let { point ->
+            PassTrackPoint(
+                instant = Instant.ofEpochMilli(point.getLong("instant")),
+                elevationDegrees = point.getDouble("elevation"),
+                azimuthDegrees = point.getDouble("azimuth"),
+                rangeRateMetersPerSecond = point.optDouble("rangeRate", 0.0),
+            )
+        } },
     )
 }
 

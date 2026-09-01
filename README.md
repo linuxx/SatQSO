@@ -13,6 +13,7 @@ SatQSO is an Android pass planner for amateur-radio satellites. It calculates pa
 - Upcoming, active, and passed pass statuses with live countdowns.
 - Compass-oriented sky path with live satellite position.
 - Azimuth and elevation timeline.
+- Doppler-corrected downlink tuning timeline with a live radar tune prompt and programmable time/frequency table.
 - Uplink, downlink, tone, mode, and satellite operating notes.
 - Background TLE refresh through WorkManager.
 
