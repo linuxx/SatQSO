@@ -24,6 +24,15 @@ class DopplerTuningTest {
     }
 
     @Test
+    fun appliesTheExpectedOneWayShiftForPositiveAndNegativeRangeRate() {
+        val nominal = 436_795_000.0
+
+        assertEquals(436_805_199L, dopplerAdjustedDownlinkHertz(nominal, -7_000.0))
+        assertEquals(436_784_801L, dopplerAdjustedDownlinkHertz(nominal, 7_000.0))
+        assertEquals(436_795_000L, dopplerAdjustedDownlinkHertz(nominal, 0.0))
+    }
+
+    @Test
     fun addsMoreTuningPointsForLongerPasses() {
         val start = Instant.parse("2026-01-01T00:00:00Z")
         val satellite = Satellite(

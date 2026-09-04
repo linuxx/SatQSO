@@ -14,6 +14,8 @@
 
 ## Features
 
+- [x] Match the compact pass-card layout and readable countdown formatting from the home-screen reference.
+- [x] Export Doppler tuning points as CHIRP-compatible split-memory CSV channels.
 - [ ] Add geographic ground-track visualization.
 - [ ] Add Doppler-corrected uplink frequencies.
 - [ ] Add preferences for location source, satellites, time format, bands, and modes.

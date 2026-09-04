@@ -27,6 +27,19 @@ Release: `1.2.2` (version code `5`)
 - Installed and launched the release APK on a connected Pixel device.
 - Checked launch, GPS display, Maidenhead locators, filters, and pass details on-device.
 - Installed the debug APK and visually checked the pass-detail compass on a connected Pixel device.
+- Matched the compact pass-card layout in the home-screen reference; pass times use 24-hour formatting and countdowns use hours/minutes or seconds when under one minute.
+- Right-aligned compact `ELEV.` and `DIR.` pass metrics, using degree symbols and compact direction arrows to keep the card values fully visible.
+- Fixed Doppler-chart timestamp precision so tuning points retain their distinct horizontal positions.
+- Fixed pass-timeline timestamp precision and rendered elevation/azimuth tracks with smooth interpolation.
+- Updated the pass timeline and downlink-tuning progress markers at display cadence for continuous real-time movement.
+- Audited the downlink Doppler model: it uses one-way range rate with the correct approaching/receding sign convention and numerical regression coverage.
+- Locked the app interface to portrait orientation.
+- Added CHIRP pass export: numbered Doppler channels, receive/downlink frequencies, split uplink frequency, and transmit PL tone are shared through Android's app chooser.
+- Changed CHIRP export to Android's attachment share sheet for Google Drive, email, and other destination apps; added an open-in-app icon to the export button.
+- Corrected the CHIRP `CrossMode` export field to the valid `Tone->Tone` value.
+- Added the Baofeng UV-5R high-power `4.0W` value required by CHIRP generic CSV imports.
+- Rounded CHIRP channel frequencies to the UV-5R-compatible 5 kHz tuning grid and display the same values in the export table.
+- Installed the updated debug APK on a connected Pixel 10 Pro XL for visual verification.
 
 Manual coordinate entry, complete network failure, cached pass loading, stale GPS refresh, and Orekit resource loading still need isolated runtime checks.
 

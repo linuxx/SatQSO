@@ -1,7 +1,11 @@
 package com.thenetworkings.satqso.ui.passes
 
 import android.Manifest
+import android.content.ActivityNotFoundException
+import android.content.ClipData
 import android.content.Context
+import android.content.Intent
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -36,6 +40,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
@@ -67,6 +72,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -87,6 +93,8 @@ import com.thenetworkings.satqso.domain.PassTrackPoint
 import com.thenetworkings.satqso.domain.Satellite
 import com.thenetworkings.satqso.domain.downlinkCenterFrequencyHertz
 import com.thenetworkings.satqso.domain.downlinkTuningPoints
+import com.thenetworkings.satqso.domain.chirpChannelFrequencyHertz
+import com.thenetworkings.satqso.domain.toChirpCsv
 import com.thenetworkings.satqso.ui.theme.CyanPrimary
 import com.thenetworkings.satqso.ui.theme.CyanSecondary
 import com.thenetworkings.satqso.ui.theme.OrbitBlue
@@ -105,6 +113,8 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.io.File
+import androidx.core.content.FileProvider
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -495,7 +505,7 @@ private fun PassCard(
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     val status = passStatusLabel(pass, currentTime)
                     if (status != "Passed") {
@@ -506,18 +516,21 @@ private fun PassCard(
                             } else {
                                 "${timeFormatter.format(pass.aos)} (${formatStartCountdown(currentTime, pass.aos)})"
                             },
-                            modifier = Modifier.weight(1.35f),
+                            modifier = Modifier.weight(1f),
                         )
                     } else {
-                        Spacer(modifier = Modifier.weight(1.35f))
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                     PassDatum(
-                        label = "MAX ELEV.", value = "${pass.maxElevationDegrees.roundToInt()} deg", color = accent,
-                        modifier = Modifier.weight(0.85f),
+                        label = "ELEV.", value = "${pass.maxElevationDegrees.roundToInt()}°", color = accent,
+                        modifier = Modifier.width(48.dp),
+                        alignment = TextAlign.End,
                     )
                     PassDatum(
-                        label = "DIRECTION", value = passDirection(pass), color = accent,
-                        modifier = Modifier.weight(1f),
+                        label = "DIR.", value = passDirection(pass), color = accent,
+                        modifier = Modifier.width(64.dp),
+                        alignment = TextAlign.End,
+                        labelModifier = Modifier.padding(end = 8.dp),
                     )
                 }
             }
@@ -636,12 +649,16 @@ private fun PassDatum(
     value: String,
     color: Color = MaterialTheme.colorScheme.onSurface,
     modifier: Modifier = Modifier,
+    alignment: TextAlign = TextAlign.Start,
+    labelModifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth().then(labelModifier),
+            textAlign = alignment,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -650,6 +667,8 @@ private fun PassDatum(
             style = MaterialTheme.typography.titleMedium,
             color = color,
             fontWeight = FontWeight.Bold,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = alignment,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -667,7 +686,7 @@ private fun PassDetail(
     LaunchedEffect(Unit) {
         while (true) {
             currentTime = Instant.now()
-            delay(100)
+            delay(16)
         }
     }
     DisposableEffect(orientationRepository) {
@@ -744,8 +763,10 @@ private fun DownlinkTuningTimeline(
     pass: PassSummary,
     currentTime: Instant,
 ) {
+    val context = LocalContext.current
     val tuningPoints = remember(pass) { pass.downlinkTuningPoints() }
     val nominalFrequencyHertz = remember(pass) { downlinkCenterFrequencyHertz(pass.satellite.downlink) }
+    val chirpCsv = remember(pass, tuningPoints) { pass.toChirpCsv(tuningPoints) }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -840,6 +861,9 @@ private fun DownlinkTuningTimeline(
                 DopplerFrequencyTable(
                     points = tuningPoints,
                     selectedPoint = selectedPoint,
+                    onExportToChirp = chirpCsv?.let { csv ->
+                        { exportPassToChirp(context, pass, csv) }
+                    },
                 )
             }
         }
@@ -873,6 +897,7 @@ private fun TuningEndpoint(
 private fun DopplerFrequencyTable(
     points: List<DownlinkTuningPoint>,
     selectedPoint: DownlinkTuningPoint,
+    onExportToChirp: (() -> Unit)?,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Surface(
@@ -882,36 +907,49 @@ private fun DopplerFrequencyTable(
             Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Text(
+                        text = "CH.",
+                        modifier = Modifier.weight(0.16f),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = TextSecondary,
+                    )
+                    Text(
                         text = "TIME",
-                        modifier = Modifier.weight(0.4f),
+                        modifier = Modifier.weight(0.32f),
                         style = MaterialTheme.typography.labelLarge,
                         color = TextSecondary,
                     )
                     Text(
                         text = "DOWNLINK (RX)",
-                        modifier = Modifier.weight(0.6f),
+                        modifier = Modifier.weight(0.52f),
                         style = MaterialTheme.typography.labelLarge,
                         color = TextSecondary,
                     )
                 }
-                points.forEach { point ->
+                points.forEachIndexed { index, point ->
                     val isSelected = point.instant == selectedPoint.instant
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(if (isSelected) CyanPrimary.copy(alpha = 0.12f) else Color.Transparent)
-                            .padding(vertical = 6.dp, horizontal = 4.dp),
+                        .padding(vertical = 6.dp, horizontal = 4.dp),
                     ) {
                         Text(
-                            text = timeFormatter.format(point.instant),
-                            modifier = Modifier.weight(0.4f),
+                            text = (index + 1).toString(),
+                            modifier = Modifier.weight(0.16f),
                             style = MaterialTheme.typography.titleMedium,
                             color = if (isSelected) SignalGreen else TextPrimary,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         )
                         Text(
-                            text = formatFrequencyHertz(point.frequencyHertz),
-                            modifier = Modifier.weight(0.6f),
+                            text = timeFormatter.format(point.instant),
+                            modifier = Modifier.weight(0.32f),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (isSelected) SignalGreen else TextPrimary,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        )
+                        Text(
+                            text = formatFrequencyHertz(point.frequencyHertz.chirpChannelFrequencyHertz()),
+                            modifier = Modifier.weight(0.52f),
                             style = MaterialTheme.typography.titleMedium,
                             color = if (isSelected) CyanPrimary else TextPrimary,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
@@ -920,6 +958,37 @@ private fun DopplerFrequencyTable(
                 }
             }
         }
+        Button(
+            onClick = { onExportToChirp?.invoke() },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = onExportToChirp != null,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_open_in_new),
+                contentDescription = "Open in another app",
+            )
+            Spacer(Modifier.width(8.dp))
+            Text("Export this pass to CHIRP")
+        }
+    }
+}
+
+private fun exportPassToChirp(context: Context, pass: PassSummary, csv: String) {
+    val exportDirectory = File(context.cacheDir, "chirp_exports").apply { mkdirs() }
+    val safeSatelliteName = pass.satellite.name.replace(Regex("[^A-Za-z0-9]+"), "-").trim('-')
+    val outputFile = File(exportDirectory, "${safeSatelliteName}-${pass.aos.epochSecond}.csv")
+    outputFile.writeText(csv)
+    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", outputFile)
+    val openIntent = Intent(Intent.ACTION_SEND)
+        .setType("text/csv")
+        .putExtra(Intent.EXTRA_STREAM, uri)
+        .putExtra(Intent.EXTRA_TITLE, outputFile.name)
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    openIntent.clipData = ClipData.newRawUri("CHIRP pass", uri)
+    try {
+        context.startActivity(Intent.createChooser(openIntent, "Send CHIRP pass export"))
+    } catch (_: ActivityNotFoundException) {
+        Toast.makeText(context, "No app is available to open CSV files.", Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -939,16 +1008,16 @@ private fun DopplerFrequencyChart(
         val bottom = 12.dp.toPx()
         val width = (size.width - left - right).coerceAtLeast(1f)
         val height = (size.height - top - bottom).coerceAtLeast(1f)
-        val start = points.first().instant.toEpochMilli().toFloat()
-        val end = points.last().instant.toEpochMilli().toFloat()
-        val duration = (end - start).coerceAtLeast(1f)
+        val start = points.first().instant.toEpochMilli()
+        val end = points.last().instant.toEpochMilli()
+        val duration = (end - start).coerceAtLeast(1L)
         val low = points.minOf { it.frequencyHertz }.toDouble()
         val high = points.maxOf { it.frequencyHertz }.toDouble()
         val frequencyPadding = maxOf(1_000.0, (high - low) * 0.15)
         val minFrequency = low - frequencyPadding
         val frequencySpan = (high - low + frequencyPadding * 2.0).coerceAtLeast(1.0)
         fun x(instant: Instant) = left +
-            ((instant.toEpochMilli().toFloat() - start) / duration) * width
+            ((instant.toEpochMilli() - start).toFloat() / duration.toFloat()) * width
         fun y(frequencyHertz: Long) = top +
             (1f - ((frequencyHertz - minFrequency) / frequencySpan).toFloat()) * height
 
@@ -1137,6 +1206,11 @@ private fun PassTimeline(
                     style = MaterialTheme.typography.bodyMedium,
                 )
             } else {
+                val markerTime = when {
+                    currentTime.isBefore(pass.aos) -> pass.aos
+                    currentTime.isAfter(pass.los) -> pass.los
+                    else -> currentTime
+                }
                 Canvas(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1149,11 +1223,11 @@ private fun PassTimeline(
                     val bottom = 24.dp.toPx()
                     val plotWidth = (size.width - left - right).coerceAtLeast(1f)
                     val plotHeight = (size.height - top - bottom).coerceAtLeast(1f)
-                    val start = points.first().instant.toEpochMilli().toFloat()
-                    val end = points.last().instant.toEpochMilli().toFloat()
-                    val span = (end - start).coerceAtLeast(1f)
+                    val start = points.first().instant.toEpochMilli()
+                    val end = points.last().instant.toEpochMilli()
+                    val span = (end - start).coerceAtLeast(1L)
                     fun x(instant: Instant) = left +
-                        ((instant.toEpochMilli().toFloat() - start) / span) * plotWidth
+                        ((instant.toEpochMilli() - start).toFloat() / span.toFloat()) * plotWidth
                     fun elevationY(value: Double) = top +
                         (1f - (value / 90.0).coerceIn(0.0, 1.0).toFloat()) * plotHeight
                     fun azimuthY(value: Double) = top +
@@ -1180,24 +1254,19 @@ private fun PassTimeline(
                             strokeWidth = 1.dp.toPx(),
                         )
                     }
-                    val elevationPath = Path()
-                    val azimuthPath = Path()
-                    points.forEachIndexed { index, point ->
+                    val elevationPoints = mutableListOf<Offset>()
+                    val azimuthPoints = mutableListOf<Offset>()
+                    points.forEach { point ->
                         val pointX = x(point.instant)
                         val elevationPoint = Offset(pointX, elevationY(point.elevationDegrees))
                         val azimuthPoint = Offset(pointX, azimuthY(point.azimuthDegrees))
-                        if (index == 0) {
-                            elevationPath.moveTo(elevationPoint.x, elevationPoint.y)
-                            azimuthPath.moveTo(azimuthPoint.x, azimuthPoint.y)
-                        } else {
-                            elevationPath.lineTo(elevationPoint.x, elevationPoint.y)
-                            azimuthPath.lineTo(azimuthPoint.x, azimuthPoint.y)
-                        }
+                        elevationPoints += elevationPoint
+                        azimuthPoints += azimuthPoint
                     }
-                    drawPath(elevationPath, color = OrbitOrange, style = Stroke(width = 3.dp.toPx()))
-                    drawPath(azimuthPath, color = CyanPrimary, style = Stroke(width = 2.dp.toPx()))
-                    points.positionAt(currentTime)?.let { currentPoint ->
-                        val currentX = x(currentPoint.instant)
+                    drawPath(smoothLinePath(elevationPoints), color = OrbitOrange, style = Stroke(width = 3.dp.toPx()))
+                    drawPath(smoothLinePath(azimuthPoints), color = CyanPrimary, style = Stroke(width = 2.dp.toPx()))
+                    points.positionAt(markerTime)?.let { currentPoint ->
+                        val currentX = x(markerTime)
                         drawLine(
                             color = SignalGreen.copy(alpha = 0.8f),
                             start = Offset(currentX, top),
@@ -1228,6 +1297,27 @@ private fun PassTimeline(
                 }
             }
         }
+    }
+}
+
+private fun smoothLinePath(points: List<Offset>): Path = Path().apply {
+    if (points.isEmpty()) return@apply
+    moveTo(points.first().x, points.first().y)
+    if (points.size == 1) return@apply
+
+    for (index in 0 until points.lastIndex) {
+        val previous = points.getOrElse(index - 1) { points[index] }
+        val current = points[index]
+        val next = points[index + 1]
+        val following = points.getOrElse(index + 2) { next }
+        cubicTo(
+            current.x + (next.x - previous.x) / 6f,
+            current.y + (next.y - previous.y) / 6f,
+            next.x - (following.x - current.x) / 6f,
+            next.y - (following.y - current.y) / 6f,
+            next.x,
+            next.y,
+        )
     }
 }
 
@@ -2189,13 +2279,13 @@ private fun formatDuration(aos: Instant, los: Instant): String {
 
 private fun formatCountdown(duration: Duration): String {
     val seconds = duration.seconds.coerceAtLeast(0L)
+    if (seconds < 60L) return "%02d seconds".format(seconds)
     val hours = seconds / 3_600
     val minutes = (seconds % 3_600) / 60
-    val remainingSeconds = seconds % 60
     return if (hours > 0) {
-        "%d:%02d:%02d".format(hours, minutes, remainingSeconds)
+        "%d hr %02d min".format(hours, minutes)
     } else {
-        "%02d:%02d".format(minutes, remainingSeconds)
+        "%d min".format(minutes)
     }
 }
 
@@ -2293,10 +2383,7 @@ private fun createLocationMap(
 private fun Double.formatMapCoordinate(): String = "%.5f".format(this)
 
 private fun formatStartCountdown(currentTime: Instant, start: Instant): String {
-    val seconds = Duration.between(currentTime, start).seconds.coerceAtLeast(0L)
-    if (seconds < 60L) return "00:%02d".format(seconds)
-    val minutes = (seconds + 59L) / 60L
-    return "$minutes min"
+    return formatCountdown(Duration.between(currentTime, start))
 }
 
 @Composable

@@ -46,6 +46,10 @@ fun PassSummary.downlinkTuningPoints(): List<DownlinkTuningPoint> {
     }
 }
 
+/**
+ * Returns the expected received one-way downlink frequency using the first-order Doppler model.
+ * A positive range rate means the satellite is receding, so the received frequency decreases.
+ */
 fun dopplerAdjustedDownlinkHertz(
     nominalFrequencyHertz: Double,
     rangeRateMetersPerSecond: Double,
