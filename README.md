@@ -24,7 +24,7 @@ SatQSO is an Android pass planner for amateur-radio satellites. It calculates pa
   <tr>
     <td align="center"><a href="docs/screenshots/home.png"><img src="docs/screenshots/home-thumb-new.png" alt="Upcoming pass list"></a><br>Upcoming passes</td>
     <td align="center"><a href="docs/screenshots/filters.png"><img src="docs/screenshots/filters-thumb-new.png" alt="Pass filters"></a><br>Filters</td>
-    <td align="center"><a href="docs/screenshots/gps.png"><img src="docs/screenshots/gps-thumb-new.png" alt="GPS location picker"></a><br>GPS location picker</td>
+    <td align="center"><a href="docs/screenshots/gps.png"><img src="docs/screenshots/gps-thumb.png" alt="GPS location picker"></a><br>GPS location picker</td>
   </tr>
 </table>
 
