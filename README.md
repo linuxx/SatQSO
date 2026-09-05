@@ -25,7 +25,6 @@ SatQSO is an Android pass planner for amateur-radio satellites. It calculates pa
 <table>
   <tr>
     <td><a href="docs/screenshots/home.png"><img src="docs/screenshots/home-1.2.1-thumb.png" alt="Upcoming pass list"></a></td>
-    <td><a href="docs/screenshots/home-lower.png"><img src="docs/screenshots/home-lower-thumb.png" alt="More upcoming passes"></a></td>
   </tr>
 </table>
 
@@ -38,9 +37,14 @@ SatQSO is an Android pass planner for amateur-radio satellites. It calculates pa
 <table>
   <tr>
     <td><a href="docs/screenshots/pass-detail.png"><img src="docs/screenshots/pass-detail-1.2.1-thumb.png" alt="Compass pass tracking"></a></td>
+    <td><a href="docs/screenshots/pass-detail-middle.png"><img src="docs/screenshots/pass-detail-middle-thumb.png" alt="Pass frequencies and operating information"></a></td>
     <td><a href="docs/screenshots/pass-detail-bottom.png"><img src="docs/screenshots/pass-detail-bottom-thumb.png" alt="Pass timeline and operating information"></a></td>
   </tr>
 </table>
+
+### Settings
+
+[![Settings](docs/screenshots/settings-thumb.png)](docs/screenshots/settings.png)
 
 ## Install
 
