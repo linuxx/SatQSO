@@ -40,7 +40,7 @@ SatQSO is an Android pass planner for amateur-radio satellites. It calculates pa
 
 ### Settings
 
-[![Settings](docs/screenshots/settings-thumb-new.png)](docs/screenshots/settings.png)
+[![Settings](docs/screenshots/settings-thumb.png)](docs/screenshots/settings.png)
 
 ## Install
 
