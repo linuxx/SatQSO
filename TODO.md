@@ -14,7 +14,14 @@
 
 ## Features
 
+- [x] Restyle the radar with a clean sky plot, separated status/countdown header, and aligned timing/tuning footer.
+- [x] Move the compass up 6 dp and enlarge it approximately 5%, including its track and compass labels.
+- [x] Enlarge and clip the map picker, add persistent zoom buttons, and retain pinch-to-zoom.
+- [x] Restyle the GPS summary with clear location/time grouping, subdued labels, and a separate grid-reference footer.
+- [x] Fade the list to disabled grayscale during refresh and show a bright refresh spinner, restoring the list when loading finishes.
 - [x] Match the compact pass-card layout and readable countdown formatting from the home-screen reference.
+- [x] Show pass dates, times, and full countdowns together without increasing the pass-card size.
+- [x] Refine pass-card maximum elevation and direction with centered labels, consistent value typography, and a direction arrow.
 - [x] Export Doppler tuning points as CHIRP-compatible split-memory CSV channels.
 - [x] Add persisted display settings for screen-awake behavior, portrait lock, and time format.
 - [ ] Add geographic ground-track visualization.

@@ -4,11 +4,18 @@ Release: `1.3.0` (version code `6`)
 
 ## Shipped
 
+- Radar uses a clean background, quieter rings/ticks, finer pass track and markers, a separated north label, and dedicated status/countdown and timing/tuning rows within the existing card size.
+- Compass plot is shifted up 6 dp and enlarged approximately 5%; the track, satellite position, and compass labels share the adjusted geometry.
+- Larger responsive location-map dialog with explicitly clipped map bounds, persistent accessible +/− zoom buttons, pinch-to-zoom, fixed header/actions, and map cleanup on dismissal.
+- GPS summary uses a clean background, left-aligned coordinates, a prominent right-aligned local clock/date, and a divided grid/subsquare footer. Manual-location highlighting and map access remain available.
+- Refresh fades the list to dimmed grayscale over 180 ms, disables scrolling and pass/location taps, and shows a cyan spinner with a Refreshing label; normal appearance and interaction return when loading finishes.
 - Local Orekit pass prediction with interpolated AOS and LOS boundaries.
 - AMSAT and CelesTrak source fallback, 12-hour cache, offline cache use, and WorkManager refresh.
 - GPS, decimal-coordinate entry, and OpenStreetMap pin selection with GPS reset.
 - Modified-location indicator and four- and six-character Maidenhead locators.
 - Upcoming-pass list with live countdowns and 24-hour, 2-day, 4-day, and 7-day windows.
+- Pass cards show the date above the time and a separate countdown beneath a compact status pill, retaining the existing card size and satellite/mode/elevation/direction information.
+- Maximum elevation and direction use centered columns, matching value typography, a subtle divider, and a proper direction arrow within the existing card height.
 - Cached pass list on launch, pull-to-refresh, and live Upcoming, Active, and Passed statuses.
 - GPS refresh when the last device fix is older than one hour.
 - Minimum-elevation and operating-mode filters.
@@ -21,6 +28,10 @@ Release: `1.3.0` (version code `6`)
 
 ## Verification
 
+- Radar restyle: unit tests and debug assembly passed; installed and compared before/after screenshots of the SO-50 radar on the Pixel 10 Pro XL. Timing, countdown, channel/frequency, compass labels, and track are visible without overlapping panels.
+- Map picker: reproduced overflow in a phone screenshot; unit tests and debug assembly passed. Installed on the Pixel 10 Pro XL and checked clipping after button zoom, panning, and pin selection. Test selection was canceled. Two-finger pinch remains enabled but needs a manual gesture check.
+- GPS summary restyle: unit tests and debug assembly passed; installed and visually checked the complete coordinate, local time/date, grid, and subsquare display on the Pixel 10 Pro XL.
+- Refresh feedback: unit tests and debug assembly passed; installed on the Pixel 10 Pro XL and captured loading/completed states. A card tap during refresh was ignored, and a card tap after completion opened pass details.
 - `.\gradlew.bat :app:testDebugUnitTest`
 - `.\gradlew.bat :app:assembleDebug`
 - `.\gradlew.bat :app:assembleRelease`
@@ -42,6 +53,8 @@ Release: `1.3.0` (version code `6`)
 - Added a reference-style bottom navigation bar on the pass list with disabled Recordings plus working Filter, Refresh, and Settings actions.
 - Added a Settings page with persisted screen-awake, portrait-lock, and 24-hour/12-hour time-format controls; screen-awake, portrait lock, and 24-hour time are enabled by default.
 - Installed the updated debug APK on a connected Pixel 10 Pro XL for visual verification.
+- Verified the date/time/countdown card layout on the Pixel 10 Pro XL in 12-hour mode; before/after screenshots show unchanged card boundaries and fully visible countdowns. Unit tests and debug assembly passed with the JDK 11 launcher, the repository-configured Gradle daemon JDK 25, and Android SDK 37.
+- Verified the refined maximum-elevation/direction layout on the connected Pixel 10 Pro XL, including two-letter compass endpoints; date/time and countdown remain fully visible and card height is unchanged. Unit tests and debug assembly passed, and the debug APK was installed.
 
 Manual coordinate entry, complete network failure, cached pass loading, stale GPS refresh, and Orekit resource loading still need isolated runtime checks.
 

@@ -31,13 +31,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -76,6 +76,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -388,16 +393,6 @@ private fun PassListBottomBar(
     showSettings: Boolean,
     onShowSettings: () -> Unit,
 ) {
-    val refreshTransition = rememberInfiniteTransition(label = "refresh-icon")
-    val refreshRotation by refreshTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 900, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "refresh-rotation",
-    )
     NavigationBar(
         containerColor = SpaceSurfaceHigh.copy(alpha = 0.98f),
         tonalElevation = 0.dp,
@@ -430,13 +425,25 @@ private fun PassListBottomBar(
             onClick = onRefresh,
             enabled = !isRefreshing,
             icon = {
-                Icon(
-                    painter = painterResource(R.drawable.ic_refresh),
-                    contentDescription = if (isRefreshing) "Refreshing" else "Refresh",
-                    modifier = Modifier.rotate(if (isRefreshing) refreshRotation else 0f),
+                if (isRefreshing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = CyanPrimary,
+                        strokeWidth = 3.dp,
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_refresh),
+                        contentDescription = "Refresh",
+                    )
+                }
+            },
+            label = {
+                Text(
+                    text = if (isRefreshing) "Refreshing…" else "Refresh",
+                    color = if (isRefreshing) CyanPrimary else TextSecondary,
                 )
             },
-            label = { Text(if (isRefreshing) "Refreshing" else "Refresh") },
         )
         NavigationBarItem(
             selected = showSettings,
@@ -547,6 +554,12 @@ private fun PassList(
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
 ) {
+    val refreshFade by animateFloatAsState(
+        targetValue = if (isRefreshing) 1f else 0f,
+        animationSpec = tween(durationMillis = 180),
+        label = "pass-list-refresh-fade",
+    )
+    val refreshPaint = remember { Paint() }
     var currentTime by remember { mutableStateOf(Instant.now()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -556,12 +569,25 @@ private fun PassList(
     }
     PullToRefreshBox(
         isRefreshing = isRefreshing,
-        onRefresh = onRefresh,
+        onRefresh = { if (!isRefreshing) onRefresh() },
         indicator = {},
         modifier = Modifier.fillMaxSize(),
     ) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().drawWithContent {
+                if (refreshFade > 0f) {
+                    refreshPaint.colorFilter = ColorFilter.colorMatrix(
+                        ColorMatrix().apply { setToSaturation(1f - refreshFade) },
+                    )
+                    refreshPaint.alpha = 1f - 0.45f * refreshFade
+                    drawContext.canvas.saveLayer(Rect(Offset.Zero, size), refreshPaint)
+                    drawContent()
+                    drawContext.canvas.restore()
+                } else {
+                    drawContent()
+                }
+            },
+            userScrollEnabled = !isRefreshing,
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -570,6 +596,7 @@ private fun PassList(
                 observerLocation = observerLocation,
                 isManualLocation = isManualLocation,
                 onClick = onLocationClick,
+                enabled = !isRefreshing,
             )
         }
         item {
@@ -605,6 +632,7 @@ private fun PassList(
                     pass = pass,
                     currentTime = currentTime,
                     onClick = { onPassSelected(pass) },
+                    enabled = !isRefreshing,
                 )
             }
         }
@@ -640,12 +668,15 @@ private fun PassCard(
     pass: PassSummary,
     currentTime: Instant,
     onClick: () -> Unit,
+    enabled: Boolean = true,
 ) {
     val accent = passAccent(pass)
+    val status = passStatusLabel(pass, currentTime)
+    val targetInstant = if (status == "Active") pass.los else pass.aos
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .border(1.dp, accent.copy(alpha = 0.6f), MaterialTheme.shapes.medium),
         colors = CardDefaults.cardColors(
             containerColor = SpaceSurface.copy(alpha = 0.88f),
@@ -679,46 +710,58 @@ private fun PassCard(
                             color = accent,
                         )
                     }
-                    val status = passStatusLabel(pass, currentTime)
-                    StatusPill(
-                        text = status,
-                        accent = statusAccent(status, accent),
-                        modifier = Modifier.width(100.dp).height(44.dp),
-                        progress = passProgress(pass, currentTime).takeIf { status == "Active" },
-                    )
+                    Column(
+                        modifier = Modifier.width(100.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        StatusPill(
+                            text = status,
+                            accent = statusAccent(status, accent),
+                            modifier = Modifier.fillMaxWidth().height(30.dp),
+                            progress = passProgress(pass, currentTime).takeIf { status == "Active" },
+                            compact = true,
+                        )
+                        if (status != "Passed") {
+                            Text(
+                                text = formatCountdown(Duration.between(currentTime, targetInstant)),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = TextPrimary,
+                                maxLines = 1,
+                                softWrap = false,
+                            )
+                        }
+                    }
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    val status = passStatusLabel(pass, currentTime)
                     if (status != "Passed") {
-                        val targetInstant = if (status == "Active") pass.los else pass.aos
-                        val remaining = Duration.between(currentTime, targetInstant)
-                        val countdownOrDate = if (status == "Upcoming" && remaining > Duration.ofHours(24)) {
-                            passDateFormatter.format(pass.aos)
-                        } else {
-                            formatCountdown(remaining)
-                        }
                         PassDatum(
-                            label = if (status == "Active") "ENDS IN" else "STARTS AT",
-                            value = "${formatAppTime(targetInstant)} ($countdownOrDate)",
+                            label = "${if (status == "Active") "ENDS" else "STARTS"} ${passDateFormatter.format(targetInstant).uppercase()}",
+                            value = formatAppTime(targetInstant),
                             modifier = Modifier.weight(1f),
                         )
                     } else {
                         Spacer(modifier = Modifier.weight(1f))
                     }
                     PassDatum(
-                        label = "ELEV.", value = "${pass.maxElevationDegrees.roundToInt()}°", color = accent,
-                        modifier = Modifier.width(40.dp),
-                        alignment = TextAlign.End,
+                        label = "MAX EL.", value = "${pass.maxElevationDegrees.roundToInt()}°", color = accent,
+                        modifier = Modifier.width(52.dp),
+                        alignment = TextAlign.Center,
+                    )
+                    Spacer(
+                        modifier = Modifier
+                            .align(Alignment.CenterVertically)
+                            .width(1.dp)
+                            .height(32.dp)
+                            .background(SpaceBorder.copy(alpha = 0.65f)),
                     )
                     PassDatum(
-                        label = "DIR.", value = passDirection(pass), color = accent,
-                        modifier = Modifier.width(72.dp),
-                        alignment = TextAlign.End,
-                        labelModifier = Modifier.padding(end = 8.dp),
-                        valueStyle = MaterialTheme.typography.titleSmall,
+                        label = "DIRECTION", value = passDirection(pass), color = accent,
+                        modifier = Modifier.width(76.dp),
+                        alignment = TextAlign.Center,
                     )
                 }
             }
@@ -731,6 +774,7 @@ private fun LocationSummaryCard(
     observerLocation: ObserverLocation?,
     isManualLocation: Boolean,
     onClick: () -> Unit,
+    enabled: Boolean = true,
 ) {
     var currentTime by remember { mutableStateOf(Instant.now()) }
 
@@ -744,17 +788,19 @@ private fun LocationSummaryCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = observerLocation != null, onClick = onClick)
+            .clickable(enabled = enabled && observerLocation != null, onClick = onClick)
             .border(1.dp, SpaceBorder, MaterialTheme.shapes.medium),
         colors = CardDefaults.cardColors(
             containerColor = SpaceSurfaceHigh.copy(alpha = 0.72f),
         ),
         shape = MaterialTheme.shapes.medium,
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            StarField(modifier = Modifier.matchParentSize(), alpha = 0.55f)
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
             Row(
-                modifier = Modifier.padding(18.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 SummaryBlock(
@@ -764,30 +810,30 @@ private fun LocationSummaryCard(
                     horizontalAlignment = Alignment.Start,
                     color = if (isManualLocation) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurface,
                 )
-                SummaryDivider()
-                Column(
-                    modifier = Modifier.weight(1f),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    SummaryBlock(
-                        label = "GRID",
-                        value = observerLocation?.maidenheadGrid() ?: "--",
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    )
-                    SummaryBlock(
-                        label = "SUBSQUARE",
-                        value = observerLocation?.maidenheadLocator() ?: "--",
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    )
-                }
-                SummaryDivider()
                 SummaryBlock(
                     label = "LOCAL TIME",
                     value = formatAppTime(currentTime),
                     detail = dateFormatter.format(currentTime),
                     modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.End,
+                    prominent = true,
+                )
+            }
+            Spacer(Modifier.fillMaxWidth().height(1.dp).background(SpaceBorder.copy(alpha = 0.65f)))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                LocatorSummary(
+                    label = "GRID",
+                    value = observerLocation?.maidenheadGrid() ?: "--",
+                    modifier = Modifier.weight(1f),
+                )
+                LocatorSummary(
+                    label = "SUBSQUARE",
+                    value = observerLocation?.maidenheadLocator() ?: "--",
+                    modifier = Modifier.weight(1f),
+                    arrangement = Arrangement.End,
                 )
             }
         }
@@ -802,22 +848,23 @@ private fun SummaryBlock(
     modifier: Modifier = Modifier,
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     color: Color = MaterialTheme.colorScheme.onSurface,
+    prominent: Boolean = false,
 ) {
     Column(
         modifier = modifier,
         horizontalAlignment = horizontalAlignment,
-        verticalArrangement = Arrangement.spacedBy(0.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            color = if (color == MaterialTheme.colorScheme.onSurface) CyanSecondary else color,
+            color = if (color == MaterialTheme.colorScheme.onSurface) TextSecondary else color,
             fontWeight = FontWeight.SemiBold,
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
+            style = if (prominent) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
             color = color,
         )
         if (detail.isNotBlank()) {
@@ -831,13 +878,26 @@ private fun SummaryBlock(
 }
 
 @Composable
-private fun SummaryDivider() {
-    Box(
-        modifier = Modifier
-            .height(62.dp)
-            .width(1.dp)
-            .background(SpaceBorder),
-    )
+private fun LocatorSummary(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    arrangement: Arrangement.Horizontal = Arrangement.Start,
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = arrangement,
+    ) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+        Spacer(Modifier.width(8.dp))
+        Text(
+            value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = CyanSecondary,
+        )
+    }
 }
 
 @Composable
@@ -1527,6 +1587,19 @@ private fun OrbitPreviewCard(
     headingDegrees: Int?,
     currentTime: Instant,
 ) {
+    val status = passStatusLabel(pass, currentTime)
+    val tuningPoints = remember(pass) { pass.downlinkTuningPoints() }
+    val tuningMarkerTime = when {
+        currentTime.isBefore(pass.aos) -> pass.aos
+        currentTime.isAfter(pass.los) -> pass.los
+        else -> currentTime
+    }
+    val currentTuningPoint = tuningPoints.lastOrNull { !it.instant.isAfter(tuningMarkerTime) }
+    val countdown = when {
+        currentTime.isBefore(pass.aos) -> Duration.between(currentTime, pass.aos)
+        currentTime.isBefore(pass.los) -> Duration.between(currentTime, pass.los)
+        else -> null
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1535,16 +1608,30 @@ private fun OrbitPreviewCard(
         colors = CardDefaults.cardColors(containerColor = SpaceSurfaceHigh.copy(alpha = 0.82f)),
         shape = MaterialTheme.shapes.medium,
     ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val status = passStatusLabel(pass, currentTime)
-            val tuningPoints = remember(pass) { pass.downlinkTuningPoints() }
-            val tuningMarkerTime = when {
-                currentTime.isBefore(pass.aos) -> pass.aos
-                currentTime.isAfter(pass.los) -> pass.los
-                else -> currentTime
+        Column(modifier = Modifier.fillMaxSize().padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                StatusPill(
+                    text = status,
+                    accent = statusAccent(status, accent),
+                    progress = passProgress(pass, currentTime).takeIf { status == "Active" },
+                )
+                if (countdown != null) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            if (status == "Active") "ENDS IN" else "STARTS IN",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary,
+                        )
+                        Text(formatCountdown(countdown), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
-            val currentTuningPoint = tuningPoints.lastOrNull { !it.instant.isAfter(tuningMarkerTime) }
-            val radarRadius = minOf(maxWidth, maxHeight) * 0.39f
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth().weight(1f).offset(y = (-6).dp)) {
+            val radarRadius = minOf(maxWidth, maxHeight) * 0.41f
             val radarCenterX = maxWidth / 2f
             val radarCenterY = maxHeight / 2f
             val livePoint = pass.track.positionAt(currentTime)
@@ -1555,12 +1642,10 @@ private fun OrbitPreviewCard(
                 (1.0 - (currentElevation / 90.0).coerceIn(0.0, 1.0)).toFloat()
             val iconCenterX = radarCenterX + currentRadius * kotlin.math.sin(relativeAzimuthRadians).toFloat()
             val iconCenterY = radarCenterY - currentRadius * kotlin.math.cos(relativeAzimuthRadians).toFloat()
-            val iconSize = 36.dp
-            StarField(modifier = Modifier.matchParentSize(), alpha = 0.8f)
-            ConstellationField(modifier = Modifier.matchParentSize())
+            val iconSize = 26.dp
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val center = Offset(size.width / 2f, size.height / 2f)
-                val radius = size.minDimension * 0.39f
+                val radius = size.minDimension * 0.41f
                 val heading = headingDegrees?.toDouble() ?: 0.0
                 for (azimuth in 0 until 360 step 5) {
                     val tickRadians = Math.toRadians(azimuth.toDouble() - heading)
@@ -1572,7 +1657,7 @@ private fun OrbitPreviewCard(
                     val outerRadius = radius * 1.04f
                     drawLine(
                         color = when {
-                            azimuth % 30 == 0 -> CyanSecondary.copy(alpha = 0.7f)
+                            azimuth % 30 == 0 -> CyanSecondary.copy(alpha = 0.5f)
                             azimuth % 10 == 0 -> SpaceBorder.copy(alpha = 0.9f)
                             else -> SpaceBorder.copy(alpha = 0.55f)
                         },
@@ -1585,27 +1670,27 @@ private fun OrbitPreviewCard(
                             center.y - outerRadius * kotlin.math.cos(tickRadians).toFloat(),
                         ),
                         strokeWidth = when {
-                            azimuth % 30 == 0 -> 2.dp.toPx()
-                            azimuth % 10 == 0 -> 1.5.dp.toPx()
+                            azimuth % 30 == 0 -> 1.5.dp.toPx()
+                            azimuth % 10 == 0 -> 1.dp.toPx()
                             else -> 0.75.dp.toPx()
                         },
                     )
                 }
                 drawCircle(
-                    color = OrbitBlue.copy(alpha = 0.52f),
+                    color = SpaceBorder,
                     radius = radius,
                     center = center,
-                    style = Stroke(width = 3.dp.toPx()),
+                    style = Stroke(width = 1.5.dp.toPx()),
                 )
                 drawCircle(
                     color = SpaceBorder.copy(alpha = 0.75f),
-                    radius = radius * 0.68f,
+                    radius = radius * (2f / 3f),
                     center = center,
                     style = Stroke(width = 1.dp.toPx()),
                 )
                 drawCircle(
                     color = SpaceBorder.copy(alpha = 0.45f),
-                    radius = radius * 0.38f,
+                    radius = radius / 3f,
                     center = center,
                     style = Stroke(width = 1.dp.toPx()),
                 )
@@ -1620,14 +1705,14 @@ private fun OrbitPreviewCard(
                 }
                 val northRadians = Math.toRadians(-heading)
                 val northTip = Offset(
-                    x = center.x + radius * 0.92f * kotlin.math.sin(northRadians).toFloat(),
-                    y = center.y - radius * 0.92f * kotlin.math.cos(northRadians).toFloat(),
+                    x = center.x + radius * 0.95f * kotlin.math.sin(northRadians).toFloat(),
+                    y = center.y - radius * 0.95f * kotlin.math.cos(northRadians).toFloat(),
                 )
                 val northBaseCenter = Offset(
-                    x = center.x + radius * 1.08f * kotlin.math.sin(northRadians).toFloat(),
-                    y = center.y - radius * 1.08f * kotlin.math.cos(northRadians).toFloat(),
+                    x = center.x + radius * 1.02f * kotlin.math.sin(northRadians).toFloat(),
+                    y = center.y - radius * 1.02f * kotlin.math.cos(northRadians).toFloat(),
                 )
-                val northBaseHalfWidth = 10.dp.toPx()
+                val northBaseHalfWidth = 4.dp.toPx()
                 val northPerpendicular = Offset(
                     x = kotlin.math.cos(northRadians).toFloat() * northBaseHalfWidth,
                     y = kotlin.math.sin(northRadians).toFloat() * northBaseHalfWidth,
@@ -1650,11 +1735,11 @@ private fun OrbitPreviewCard(
                             path.lineTo(pointOffset.x, pointOffset.y)
                         }
                     }
-                    drawPath(path, color = accent, style = Stroke(width = 4.dp.toPx()))
+                    drawPath(path, color = accent, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round))
                     val startPoint = track.first()
                     val endPoint = track.last()
-                    drawCircle(color = SignalGreen, radius = 9.dp.toPx(), center = skyPoint(startPoint.elevationDegrees, startPoint.azimuthDegrees))
-                    drawCircle(color = Color(0xFFFF4D5A), radius = 9.dp.toPx(), center = skyPoint(endPoint.elevationDegrees, endPoint.azimuthDegrees))
+                    drawCircle(color = SignalGreen, radius = 5.dp.toPx(), center = skyPoint(startPoint.elevationDegrees, startPoint.azimuthDegrees))
+                    drawCircle(color = Color(0xFFFF4D5A), radius = 5.dp.toPx(), center = skyPoint(endPoint.elevationDegrees, endPoint.azimuthDegrees))
                 } else {
                     val start = Offset(center.x - radius * 0.72f, center.y + radius * 0.55f)
                     val end = Offset(center.x + radius * 0.62f, center.y - radius * 0.48f)
@@ -1672,122 +1757,45 @@ private fun OrbitPreviewCard(
             SatelliteAvatar(
                 pass = pass,
                 accent = accent,
-                sizeDp = 36,
+                sizeDp = 26,
                 modifier = Modifier.offset(
                     x = iconCenterX - iconSize / 2f,
                     y = iconCenterY - iconSize / 2f,
                 ),
             )
             val compassHeading = headingDegrees?.toDouble() ?: 0.0
-            CompassLabel("N", 0.0, compassHeading, radarRadius * 1.06f)
-            CompassLabel("E", 90.0, compassHeading, radarRadius * 1.06f)
-            CompassLabel("S", 180.0, compassHeading, radarRadius * 1.06f)
-            CompassLabel("W", 270.0, compassHeading, radarRadius * 1.06f)
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(14.dp)
-                    .border(1.dp, SignalGreen, MaterialTheme.shapes.small),
-                color = SpaceSurfaceHigh.copy(alpha = 0.96f),
-                shape = MaterialTheme.shapes.small,
+            CompassLabel("N", 0.0, compassHeading, radarRadius * 1.14f)
+            CompassLabel("E", 90.0, compassHeading, radarRadius * 1.14f)
+            CompassLabel("S", 180.0, compassHeading, radarRadius * 1.14f)
+            CompassLabel("W", 270.0, compassHeading, radarRadius * 1.14f)
+        }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
-                    Text("AOS", color = SignalGreen, style = MaterialTheme.typography.labelLarge)
-                    Text(formatAppTime(pass.aos), fontWeight = FontWeight.Bold)
-                }
-            }
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(14.dp)
-                    .border(1.dp, Color(0xFFFF4D5A), MaterialTheme.shapes.small),
-                color = SpaceSurfaceHigh.copy(alpha = 0.96f),
-                shape = MaterialTheme.shapes.small,
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    horizontalAlignment = Alignment.End,
-                ) {
-                    Text("LOS", color = Color(0xFFFF4D5A), style = MaterialTheme.typography.labelLarge)
-                    Text(formatAppTime(pass.los), fontWeight = FontWeight.Bold)
-                }
-            }
-            val countdown = when {
-                currentTime.isBefore(pass.aos) -> Duration.between(currentTime, pass.aos)
-                currentTime.isBefore(pass.los) -> Duration.between(currentTime, pass.los)
-                else -> null
-            }
-            if (countdown != null) {
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 14.dp),
-                    color = SpaceSurfaceHigh.copy(alpha = 0.96f),
-                    shape = MaterialTheme.shapes.small,
-                ) {
-                    Text(
-                        text = formatCountdown(countdown),
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary,
-                    )
-                }
-            }
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(18.dp),
-                horizontalAlignment = Alignment.End,
-            ) {
-                Text("DURATION", color = TextSecondary, style = MaterialTheme.typography.labelLarge)
-                Text(formatDuration(pass.aos, pass.los), fontWeight = FontWeight.Bold)
+                PassDatum("AOS", formatAppTime(pass.aos), color = SignalGreen, modifier = Modifier.weight(1f))
+                PassDatum("DURATION", formatDuration(pass.aos, pass.los), modifier = Modifier.weight(1f), alignment = TextAlign.Center)
+                PassDatum("LOS", formatAppTime(pass.los), color = Color(0xFFFF4D5A), modifier = Modifier.weight(1f), alignment = TextAlign.End)
             }
             currentTuningPoint?.let { tuningPoint ->
                 val channel = tuningPoints.indexOf(tuningPoint) + 1
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 2.dp),
-                    color = SpaceSurfaceHigh.copy(alpha = 0.96f),
-                    shape = MaterialTheme.shapes.small,
+                Spacer(Modifier.fillMaxWidth().height(1.dp).background(SpaceBorder))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text("TUNE", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = "($channel)",
-                                style = MaterialTheme.typography.titleLarge,
-                                color = SignalGreen,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Text(
-                                text = formatFrequencyHertz(tuningPoint.frequencyHertz.chirpChannelFrequencyHertz()),
-                                style = MaterialTheme.typography.titleLarge,
-                                color = CyanPrimary,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("TUNE", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                        Text("CH $channel", style = MaterialTheme.typography.labelLarge, color = SignalGreen)
                     }
+                    Text(
+                        formatFrequencyHertz(tuningPoint.frequencyHertz.chirpChannelFrequencyHertz()),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = CyanPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
                 }
-            }
-            Column(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                StatusPill(
-                    text = status,
-                    accent = statusAccent(status, accent),
-                    progress = passProgress(pass, currentTime).takeIf { status == "Active" },
-                )
             }
         }
     }
@@ -1826,8 +1834,9 @@ private fun CompassLabel(
                     x = (radius.value * kotlin.math.sin(radians)).dp,
                     y = (-radius.value * kotlin.math.cos(radians)).dp,
                 ),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = if (label == "N") Color(0xFFFF4D5A) else TextSecondary,
         )
     }
 }
@@ -1927,6 +1936,7 @@ private fun StatusPill(
     accent: Color,
     modifier: Modifier = Modifier,
     progress: Float? = null,
+    compact: Boolean = false,
 ) {
     Surface(
         modifier = modifier.border(1.dp, accent.copy(alpha = 0.8f), CircleShape),
@@ -1936,7 +1946,7 @@ private fun StatusPill(
     ) {
         Column(
             modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .padding(horizontal = 12.dp, vertical = if (compact) 2.dp else 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = if (progress == null) Arrangement.Center else Arrangement.spacedBy(3.dp),
         ) {
@@ -2384,7 +2394,7 @@ private fun compassPoint(degrees: Double): String {
 }
 
 private fun passDirection(pass: PassSummary): String =
-    "${compassPoint(pass.aosAzimuthDegrees)} -> ${compassPoint(pass.losAzimuthDegrees)}"
+    "${compassPoint(pass.aosAzimuthDegrees)} → ${compassPoint(pass.losAzimuthDegrees)}"
 
 private fun passStatusLabel(pass: PassSummary, currentTime: Instant): String = when {
     currentTime.isBefore(pass.aos) -> "Upcoming"
@@ -2482,16 +2492,32 @@ private fun MapLocationDialog(
     onReset: () -> Unit,
 ) {
     var selectedLocation by remember(initialLocation) { mutableStateOf(initialLocation) }
-    AlertDialog(
+    var locationMap by remember { mutableStateOf<MapView?>(null) }
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text("Choose location") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Tap the map to move the pin.")
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(0.96f).fillMaxSize(0.9f),
+            shape = MaterialTheme.shapes.large,
+            color = SpaceSurfaceHigh,
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("Choose location", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "Tap to move the pin. Pinch or use + / − to zoom.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary,
+                )
+                Box(
+                    modifier = Modifier.fillMaxWidth().weight(1f)
+                        .clip(MaterialTheme.shapes.medium).clipToBounds(),
+                ) {
                 AndroidView(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(360.dp),
+                    modifier = Modifier.fillMaxSize().clipToBounds(),
                     factory = { context ->
                         createLocationMap(context, selectedLocation) { latitude, longitude ->
                             selectedLocation = ObserverLocation(
@@ -2499,7 +2525,12 @@ private fun MapLocationDialog(
                                 longitudeDegrees = longitude,
                                 altitudeMeters = selectedLocation.altitudeMeters,
                             )
-                        }
+                        }.also { locationMap = it }
+                    },
+                    onRelease = { mapView ->
+                        locationMap = null
+                        mapView.onPause()
+                        mapView.onDetach()
                     },
                     update = { mapView ->
                         val marker = mapView.tag as Marker
@@ -2507,27 +2538,40 @@ private fun MapLocationDialog(
                         mapView.invalidate()
                     },
                 )
+                    Surface(
+                        modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
+                        shape = MaterialTheme.shapes.small,
+                        color = SpaceSurfaceHigh,
+                        shadowElevation = 4.dp,
+                    ) {
+                        Column {
+                            TextButton(
+                                onClick = { locationMap?.controller?.zoomIn() },
+                                modifier = Modifier.size(48.dp).semantics { contentDescription = "Zoom in" },
+                            ) { Text("+", style = MaterialTheme.typography.headlineSmall) }
+                            TextButton(
+                                onClick = { locationMap?.controller?.zoomOut() },
+                                modifier = Modifier.size(48.dp).semantics { contentDescription = "Zoom out" },
+                            ) { Text("−", style = MaterialTheme.typography.headlineSmall) }
+                        }
+                    }
+                }
                 Text(
                     text = "${selectedLocation.latitudeDegrees.formatMapCoordinate()}, " +
                         selectedLocation.longitudeDegrees.formatMapCoordinate(),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Button(onClick = { onSave(selectedLocation) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Use this location")
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    TextButton(onClick = onReset) { Text("Reset to GPS") }
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = { onSave(selectedLocation) }) {
-                Text("Use this location")
-            }
-        },
-        dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = onReset) { Text("Reset to GPS") }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
-            }
-        },
-    )
-
+        }
+    }
 }
 
 private fun createLocationMap(
@@ -2539,6 +2583,7 @@ private fun createLocationMap(
     return MapView(context).apply {
         setTileSource(TileSourceFactory.MAPNIK)
         setMultiTouchControls(true)
+        zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
         controller.setZoom(11.0)
         controller.setCenter(GeoPoint(location.latitudeDegrees, location.longitudeDegrees))
 
