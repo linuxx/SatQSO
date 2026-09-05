@@ -806,7 +806,7 @@ private fun LocationSummaryCard(
                 SummaryBlock(
                     label = if (isManualLocation) "GPS • MODIFIED" else "GPS",
                     value = observerLocation?.formattedCoordinates() ?: "Calculating",
-                    hint = "Tap coords to change",
+                    hint = if (isManualLocation) "" else "Tap To Change",
                     modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.Start,
                     color = if (isManualLocation) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurface,

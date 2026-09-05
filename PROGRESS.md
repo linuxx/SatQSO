@@ -5,6 +5,7 @@ Release: `1.3.5` (version code `7`)
 ## Shipped
 
 - GPS summary now includes an inline cyan “Tap to change” affordance beside the GPS/modified label while preserving the existing card size and tap behavior.
+- GPS summary shows the exact “Tap To Change” affordance only for live GPS coordinates and hides it for modified locations.
 - Pass-detail radar shows the satellite image only during Active status; Upcoming and Passed states show the pass arc with its green AOS and red LOS markers.
 - Radar uses a clean background, quieter rings/ticks, finer pass track and markers, a separated north label, and dedicated status/countdown and timing/tuning rows within the existing card size.
 - Compass plot is shifted up 6 dp and enlarged approximately 5%; the track, satellite position, and compass labels share the adjusted geometry.
