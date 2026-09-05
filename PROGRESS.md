@@ -4,6 +4,8 @@ Release: `1.3.0` (version code `6`)
 
 ## Shipped
 
+- GPS summary now includes an inline cyan “Tap to change” affordance beside the GPS/modified label while preserving the existing card size and tap behavior.
+- Pass-detail radar shows the satellite image only during Active status; Upcoming and Passed states show the pass arc with its green AOS and red LOS markers.
 - Radar uses a clean background, quieter rings/ticks, finer pass track and markers, a separated north label, and dedicated status/countdown and timing/tuning rows within the existing card size.
 - Compass plot is shifted up 6 dp and enlarged approximately 5%; the track, satellite position, and compass labels share the adjusted geometry.
 - Larger responsive location-map dialog with explicitly clipped map bounds, persistent accessible +/− zoom buttons, pinch-to-zoom, fixed header/actions, and map cleanup on dismissal.
@@ -28,6 +30,8 @@ Release: `1.3.0` (version code `6`)
 
 ## Verification
 
+- GPS affordance: unit tests and debug assembly passed; debug APK installed on the connected Pixel 10 Pro XL. The hint is rendered inline with the GPS label and does not add card height.
+- Satellite marker visibility: unit tests and debug assembly passed; the debug APK was installed on the connected Pixel 10 Pro XL. The composable condition is keyed to the existing `Active` pass status, while arc and endpoint rendering remains unconditional.
 - Radar restyle: unit tests and debug assembly passed; installed and compared before/after screenshots of the SO-50 radar on the Pixel 10 Pro XL. Timing, countdown, channel/frequency, compass labels, and track are visible without overlapping panels.
 - Map picker: reproduced overflow in a phone screenshot; unit tests and debug assembly passed. Installed on the Pixel 10 Pro XL and checked clipping after button zoom, panning, and pin selection. Test selection was canceled. Two-finger pinch remains enabled but needs a manual gesture check.
 - GPS summary restyle: unit tests and debug assembly passed; installed and visually checked the complete coordinate, local time/date, grid, and subsquare display on the Pixel 10 Pro XL.

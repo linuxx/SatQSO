@@ -14,6 +14,8 @@
 
 ## Features
 
+- [x] Add an inline "Tap to change" hint beside the GPS summary label so the tappable location control is discoverable.
+- [x] Show the satellite image on the pass-detail radar only while the pass is active; retain the arc and endpoint dots before and after the pass.
 - [x] Restyle the radar with a clean sky plot, separated status/countdown header, and aligned timing/tuning footer.
 - [x] Move the compass up 6 dp and enlarge it approximately 5%, including its track and compass labels.
 - [x] Enlarge and clip the map picker, add persistent zoom buttons, and retain pinch-to-zoom.

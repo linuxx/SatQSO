@@ -806,6 +806,7 @@ private fun LocationSummaryCard(
                 SummaryBlock(
                     label = if (isManualLocation) "GPS • MODIFIED" else "GPS",
                     value = observerLocation?.formattedCoordinates() ?: "Calculating",
+                    hint = "Tap coords to change",
                     modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.Start,
                     color = if (isManualLocation) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurface,
@@ -849,18 +850,31 @@ private fun SummaryBlock(
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     color: Color = MaterialTheme.colorScheme.onSurface,
     prominent: Boolean = false,
+    hint: String = "",
 ) {
     Column(
         modifier = modifier,
         horizontalAlignment = horizontalAlignment,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = if (color == MaterialTheme.colorScheme.onSurface) TextSecondary else color,
-            fontWeight = FontWeight.SemiBold,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (color == MaterialTheme.colorScheme.onSurface) TextSecondary else color,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (hint.isNotBlank()) {
+                Text(
+                    text = hint,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = CyanPrimary,
+                )
+            }
+        }
         Text(
             text = value,
             style = if (prominent) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
@@ -1754,15 +1768,17 @@ private fun OrbitPreviewCard(
                     drawCircle(color = Color(0xFFFF4D5A), radius = 9.dp.toPx(), center = end)
                 }
             }
-            SatelliteAvatar(
-                pass = pass,
-                accent = accent,
-                sizeDp = 26,
-                modifier = Modifier.offset(
-                    x = iconCenterX - iconSize / 2f,
-                    y = iconCenterY - iconSize / 2f,
-                ),
-            )
+            if (status == "Active") {
+                SatelliteAvatar(
+                    pass = pass,
+                    accent = accent,
+                    sizeDp = 26,
+                    modifier = Modifier.offset(
+                        x = iconCenterX - iconSize / 2f,
+                        y = iconCenterY - iconSize / 2f,
+                    ),
+                )
+            }
             val compassHeading = headingDegrees?.toDouble() ?: 0.0
             CompassLabel("N", 0.0, compassHeading, radarRadius * 1.14f)
             CompassLabel("E", 90.0, compassHeading, radarRadius * 1.14f)
