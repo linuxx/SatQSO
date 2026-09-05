@@ -1,6 +1,6 @@
 # SatQSO Progress
 
-Release: `1.2.2` (version code `5`)
+Release: `1.3.0` (version code `6`)
 
 ## Shipped
 
