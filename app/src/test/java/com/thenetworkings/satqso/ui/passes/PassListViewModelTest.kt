@@ -116,7 +116,12 @@ class PassListViewModelTest {
         passes: List<PassSummary> = emptyList(),
     ): PassListViewModel {
         val actualPassSource = if (passes.isEmpty()) passSource else FakePassDataSource(passes = passes)
-        return PassListViewModel(location, actualPassSource, preferences)
+        return PassListViewModel(
+            locationRepository = location,
+            passRepository = actualPassSource,
+            passDisplayPreferences = preferences,
+            calculationDispatcher = dispatcher,
+        )
     }
 
     private fun pass(name: String, elevation: Double, mode: OperatingMode) = PassSummary(

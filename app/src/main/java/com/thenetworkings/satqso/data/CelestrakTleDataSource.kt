@@ -7,12 +7,19 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.time.Clock
 import java.time.Duration
+import java.util.concurrent.TimeUnit
 
 class CelestrakTleDataSource(
     private val httpClient: OkHttpClient,
     private val cache: TleCache? = null,
     private val clock: Clock = Clock.systemUTC(),
 ) {
+    private val networkClient = httpClient.newBuilder()
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(8, TimeUnit.SECONDS)
+        .callTimeout(12, TimeUnit.SECONDS)
+        .build()
+
     private val urls = listOf(
         "https://www.amsat.org/tle/current/nasabare.txt",
         "https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=tle",
@@ -23,7 +30,7 @@ class CelestrakTleDataSource(
         val cachedTles = cache?.read()
         val matchingCachedTles = cachedTles?.tlesByNoradId.orEmpty().filterKeys { it in noradIds }
         if (cachedTles != null &&
-            matchingCachedTles.keys.containsAll(noradIds) &&
+            matchingCachedTles.isNotEmpty() &&
             Duration.between(cachedTles.fetchedAt, clock.instant()) < CACHE_TTL
         ) {
             return@withContext matchingCachedTles
@@ -61,7 +68,7 @@ class CelestrakTleDataSource(
 
     private fun fetchUrl(url: String): List<Tle> {
         val request = Request.Builder().url(url).build()
-        httpClient.newCall(request).execute().use { response ->
+        networkClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 error("CelesTrak request failed: HTTP ${response.code}")
             }

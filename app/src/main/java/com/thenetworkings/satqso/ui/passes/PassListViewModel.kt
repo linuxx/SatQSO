@@ -17,7 +17,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class PassListUiState(
     val isLoading: Boolean = false,
@@ -25,6 +28,7 @@ data class PassListUiState(
     val showManualLocationEditor: Boolean = false,
     val showMapLocationPicker: Boolean = false,
     val showFilters: Boolean = false,
+    val showSettings: Boolean = false,
     val passes: List<PassSummary> = emptyList(),
     val selectedPass: PassSummary? = null,
     val observerLocation: ObserverLocation? = null,
@@ -33,6 +37,9 @@ data class PassListUiState(
     val minimumElevationDegrees: Int = DefaultMinimumElevationDegrees,
     val lookAheadHours: Int = DefaultLookAheadHours,
     val selectedOperatingModes: Set<OperatingMode> = OperatingModeFilters.toSet(),
+    val disableSleep: Boolean = true,
+    val disableRotation: Boolean = true,
+    val use24HourTime: Boolean = true,
     val errorMessage: String? = null,
 )
 
@@ -41,6 +48,7 @@ class PassListViewModel(
     private val passRepository: PassDataSource,
     private val passDisplayPreferences: PassDisplayPreferences,
     private val passCache: PassCache? = null,
+    private val calculationDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(PassListUiState())
     val uiState: StateFlow<PassListUiState> = _uiState.asStateFlow()
@@ -55,11 +63,17 @@ class PassListViewModel(
         val lookAheadHours = passDisplayPreferences.lookAheadHours()
             .takeIf { it in LookAheadHourOptions }
             ?: DefaultLookAheadHours
+        val disableSleep = passDisplayPreferences.disableSleep()
+        val disableRotation = passDisplayPreferences.disableRotation()
+        val use24HourTime = passDisplayPreferences.use24HourTime()
         _uiState.update {
             it.copy(
                 minimumElevationDegrees = minimumElevationDegrees,
                 selectedOperatingModes = selectedOperatingModes,
                 lookAheadHours = lookAheadHours,
+                disableSleep = disableSleep,
+                disableRotation = disableRotation,
+                use24HourTime = use24HourTime,
             )
         }
         passCache?.read()?.let { cached ->
@@ -102,7 +116,10 @@ class PassListViewModel(
                 val location = locationRepository.currentLocation()
                 val start = Instant.now().minus(Duration.ofHours(2))
                 val end = start.plus(Duration.ofHours(_uiState.value.lookAheadHours.toLong()))
-                location to passRepository.passes(location, start, end)
+                val passes = withContext(calculationDispatcher) {
+                    passRepository.passes(location, start, end)
+                }
+                location to passes
             }.onSuccess { (location, passes) ->
                 val currentTime = Instant.now()
                 val visiblePasses = passes.filter { it.los.isAfter(currentTime) }
@@ -186,6 +203,29 @@ class PassListViewModel(
 
     fun dismissFilters() {
         _uiState.update { it.copy(showFilters = false) }
+    }
+
+    fun showSettings() {
+        _uiState.update { it.copy(showSettings = true) }
+    }
+
+    fun dismissSettings() {
+        _uiState.update { it.copy(showSettings = false) }
+    }
+
+    fun setDisableSleep(value: Boolean) {
+        passDisplayPreferences.saveDisableSleep(value)
+        _uiState.update { it.copy(disableSleep = value) }
+    }
+
+    fun setDisableRotation(value: Boolean) {
+        passDisplayPreferences.saveDisableRotation(value)
+        _uiState.update { it.copy(disableRotation = value) }
+    }
+
+    fun setUse24HourTime(value: Boolean) {
+        passDisplayPreferences.saveUse24HourTime(value)
+        _uiState.update { it.copy(use24HourTime = value) }
     }
 
     fun showManualLocationEditor() {

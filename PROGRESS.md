@@ -14,7 +14,7 @@ Release: `1.2.2` (version code `5`)
 - Minimum-elevation and operating-mode filters.
 - Compass-oriented pass path, device heading, live satellite marker, and azimuth/elevation timeline.
 - Pass-detail compass rim aligned with its tick marks.
-- Doppler-corrected downlink tuning timeline with duration-based steps, a radar tune prompt, color-coded AOS/LOS frequencies, and a programmable time/frequency table.
+- Combined frequencies and operating information with the Doppler-corrected downlink tuning timeline, duration-based steps, radar tune prompt, color-coded AOS/LOS frequencies, and programmable time/frequency table.
 - Compact frequency, tone, mode, pass timing, and satellite information panels.
 - Screen-awake behavior while the app is open.
 - Signed release builds with R8 and resource shrinking.
@@ -38,7 +38,9 @@ Release: `1.2.2` (version code `5`)
 - Changed CHIRP export to Android's attachment share sheet for Google Drive, email, and other destination apps; added an open-in-app icon to the export button.
 - Corrected the CHIRP `CrossMode` export field to the valid `Tone->Tone` value.
 - Added the Baofeng UV-5R high-power `4.0W` value required by CHIRP generic CSV imports.
-- Rounded CHIRP channel frequencies to the UV-5R-compatible 5 kHz tuning grid and display the same values in the export table.
+- Rounded CHIRP channel frequencies to the UV-5R-compatible 5 kHz tuning grid and display the same values in the export table and radar tune prompt, including the active green channel number.
+- Added a reference-style bottom navigation bar on the pass list with disabled Recordings plus working Filter, Refresh, and Settings actions.
+- Added a Settings page with persisted screen-awake, portrait-lock, and 24-hour/12-hour time-format controls; screen-awake, portrait lock, and 24-hour time are enabled by default.
 - Installed the updated debug APK on a connected Pixel 10 Pro XL for visual verification.
 
 Manual coordinate entry, complete network failure, cached pass loading, stale GPS refresh, and Orekit resource loading still need isolated runtime checks.

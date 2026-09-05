@@ -66,6 +66,28 @@ class CelestrakTleDataSourceTest {
         assertEquals(mapOf(27607 to tle), dataSource.fetchTles(setOf(27607)))
     }
 
+    @Test
+    fun fetchUsesFreshPartialCacheWithoutRetryingMissingSatellites() = runBlocking {
+        val tle = Tle(
+            name = "SO-50",
+            line1 = "1 27607U 02058C   24234.51782528  .00001234  00000+0  12345-3 0  9992",
+            line2 = "2 27607  64.5550 101.1200 0084000 120.0000 240.0000 14.70000000123456",
+        )
+        val cache = InMemoryTleCache(
+            CachedTles(
+                fetchedAt = Instant.parse("2026-08-25T12:00:00Z"),
+                tlesByNoradId = mapOf(27607 to tle),
+            ),
+        )
+        val dataSource = CelestrakTleDataSource(
+            httpClient = OkHttpClient(),
+            cache = cache,
+            clock = Clock.fixed(Instant.parse("2026-08-25T23:59:59Z"), ZoneOffset.UTC),
+        )
+
+        assertEquals(mapOf(27607 to tle), dataSource.fetchTles(setOf(27607, 99999)))
+    }
+
     private class InMemoryTleCache(
         private var cachedTles: CachedTles?,
     ) : TleCache {

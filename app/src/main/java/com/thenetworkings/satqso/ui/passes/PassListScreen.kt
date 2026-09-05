@@ -31,12 +31,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -49,6 +58,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -61,6 +71,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -76,6 +88,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
@@ -126,7 +139,11 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
 @Composable
-fun PassListRoute(dependencies: SatQsoDependencies) {
+fun PassListRoute(
+    dependencies: SatQsoDependencies,
+    onDisableSleepChanged: (Boolean) -> Unit = {},
+    onDisableRotationChanged: (Boolean) -> Unit = {},
+) {
     val viewModel: PassListViewModel = viewModel(
         factory = PassListViewModel.Factory(
             locationRepository = dependencies.locationRepository,
@@ -173,6 +190,17 @@ fun PassListRoute(dependencies: SatQsoDependencies) {
         onResetLocation = viewModel::resetToGpsLocation,
         onShowFilters = viewModel::showFilters,
         onDismissFilters = viewModel::dismissFilters,
+        onShowSettings = viewModel::showSettings,
+        onDismissSettings = viewModel::dismissSettings,
+        onDisableSleepChanged = {
+            viewModel.setDisableSleep(it)
+            onDisableSleepChanged(it)
+        },
+        onDisableRotationChanged = {
+            viewModel.setDisableRotation(it)
+            onDisableRotationChanged(it)
+        },
+        onUse24HourTimeChanged = viewModel::setUse24HourTime,
         onMinimumElevationSelected = viewModel::setMinimumElevationDegrees,
         onLookAheadHoursSelected = viewModel::setLookAheadHours,
         onOperatingModeToggled = viewModel::toggleOperatingMode,
@@ -197,6 +225,11 @@ fun PassListScreen(
     onResetLocation: () -> Unit = {},
     onShowFilters: () -> Unit,
     onDismissFilters: () -> Unit,
+    onShowSettings: () -> Unit = {},
+    onDismissSettings: () -> Unit = {},
+    onDisableSleepChanged: (Boolean) -> Unit = {},
+    onDisableRotationChanged: (Boolean) -> Unit = {},
+    onUse24HourTimeChanged: (Boolean) -> Unit = {},
     onMinimumElevationSelected: (Int) -> Unit,
     onLookAheadHoursSelected: (Int) -> Unit = {},
     onOperatingModeToggled: (OperatingMode) -> Unit,
@@ -204,37 +237,22 @@ fun PassListScreen(
     onClosePassDetails: () -> Unit,
     orientationRepository: OrientationRepository? = null,
 ) {
-    BackHandler(enabled = uiState.selectedPass != null) {
-        onClosePassDetails()
+    BackHandler(enabled = uiState.selectedPass != null || uiState.showSettings) {
+        if (uiState.selectedPass != null) onClosePassDetails() else onDismissSettings()
     }
 
+    CompositionLocalProvider(LocalTimeFormatter provides timeFormatterFor(uiState.use24HourTime)) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                navigationIcon = {
-                    if (uiState.selectedPass != null) {
+            if (uiState.selectedPass != null) {
+                TopAppBar(
+                    navigationIcon = {
                         TextButton(onClick = onClosePassDetails) {
                             Text("Back")
                         }
-                    }
-                },
-                title = {
-                    if (uiState.selectedPass == null) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Sat",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Text(
-                                text = "QSO",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = CyanPrimary,
-                            )
-                        }
-                    } else {
+                    },
+                    title = {
                         Column {
                             Text(
                                 text = uiState.selectedPass?.satellite?.name.orEmpty(),
@@ -247,23 +265,13 @@ fun PassListScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
-                ),
-                actions = {
-                    if (uiState.selectedPass == null) {
-                        HeaderActionButton(text = "Filter", onClick = onShowFilters)
-                        Spacer(Modifier.width(8.dp))
-                        HeaderActionButton(
-                            text = if (uiState.isLoading) "Refreshing" else "Refresh",
-                            onClick = onRefresh,
-                            isLoading = uiState.isLoading,
-                        )
-                    } else {
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        titleContentColor = MaterialTheme.colorScheme.onBackground,
+                        navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
+                    ),
+                    actions = {
                         Text(
                             text = uiState.observerLocation?.maidenheadGrid() ?: "----",
                             style = MaterialTheme.typography.headlineSmall,
@@ -271,9 +279,20 @@ fun PassListScreen(
                             color = CyanPrimary,
                         )
                         Spacer(Modifier.width(16.dp))
-                    }
-                },
-            )
+                    },
+                )
+            }
+        },
+        bottomBar = {
+            if (uiState.selectedPass == null) {
+                PassListBottomBar(
+                    onShowFilters = onShowFilters,
+                    onRefresh = onRefresh,
+                    isRefreshing = uiState.isLoading,
+                    showSettings = uiState.showSettings,
+                    onShowSettings = onShowSettings,
+                )
+            }
         },
     ) { innerPadding ->
         Surface(
@@ -292,6 +311,15 @@ fun PassListScreen(
                     PassDetail(
                         pass = selectedPass,
                         orientationRepository = orientationRepository,
+                    )
+                } else if (uiState.showSettings) {
+                    SettingsPage(
+                        disableSleep = uiState.disableSleep,
+                        disableRotation = uiState.disableRotation,
+                        use24HourTime = uiState.use24HourTime,
+                        onDisableSleepChanged = onDisableSleepChanged,
+                        onDisableRotationChanged = onDisableRotationChanged,
+                        onUse24HourTimeChanged = onUse24HourTimeChanged,
                     )
                 } else {
                     when {
@@ -348,6 +376,162 @@ fun PassListScreen(
                 }
             }
         }
+    }
+    }
+}
+
+@Composable
+private fun PassListBottomBar(
+    onShowFilters: () -> Unit,
+    onRefresh: () -> Unit,
+    isRefreshing: Boolean,
+    showSettings: Boolean,
+    onShowSettings: () -> Unit,
+) {
+    val refreshTransition = rememberInfiniteTransition(label = "refresh-icon")
+    val refreshRotation by refreshTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 900, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "refresh-rotation",
+    )
+    NavigationBar(
+        containerColor = SpaceSurfaceHigh.copy(alpha = 0.98f),
+        tonalElevation = 0.dp,
+    ) {
+        NavigationBarItem(
+            selected = false,
+            onClick = {},
+            enabled = false,
+            icon = {
+                Icon(
+                    painter = painterResource(R.drawable.ic_recordings),
+                    contentDescription = "Recordings",
+                )
+            },
+            label = { Text("Recordings") },
+        )
+        NavigationBarItem(
+            selected = false,
+            onClick = onShowFilters,
+            icon = {
+                Icon(
+                    painter = painterResource(R.drawable.ic_filter),
+                    contentDescription = "Filter",
+                )
+            },
+            label = { Text("Filter") },
+        )
+        NavigationBarItem(
+            selected = false,
+            onClick = onRefresh,
+            enabled = !isRefreshing,
+            icon = {
+                Icon(
+                    painter = painterResource(R.drawable.ic_refresh),
+                    contentDescription = if (isRefreshing) "Refreshing" else "Refresh",
+                    modifier = Modifier.rotate(if (isRefreshing) refreshRotation else 0f),
+                )
+            },
+            label = { Text(if (isRefreshing) "Refreshing" else "Refresh") },
+        )
+        NavigationBarItem(
+            selected = showSettings,
+            onClick = onShowSettings,
+            icon = {
+                Icon(
+                    painter = painterResource(R.drawable.ic_settings),
+                    contentDescription = "Settings",
+                )
+            },
+            label = { Text("Settings") },
+        )
+    }
+}
+
+@Composable
+private fun SettingsPage(
+    disableSleep: Boolean,
+    disableRotation: Boolean,
+    use24HourTime: Boolean,
+    onDisableSleepChanged: (Boolean) -> Unit,
+    onDisableRotationChanged: (Boolean) -> Unit,
+    onUse24HourTimeChanged: (Boolean) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        Text(
+            text = "Settings",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = CyanPrimary,
+        )
+        Text(
+            text = "Display & device",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        SettingSwitchRow(
+            title = "Disable sleep",
+            description = "Keep the display on while using SatQSO.",
+            checked = disableSleep,
+            onCheckedChange = onDisableSleepChanged,
+        )
+        SettingSwitchRow(
+            title = "Disable rotation",
+            description = "Keep SatQSO in portrait orientation.",
+            checked = disableRotation,
+            onCheckedChange = onDisableRotationChanged,
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "Time format",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = use24HourTime,
+                    onClick = { onUse24HourTimeChanged(true) },
+                    label = { Text("24-hour") },
+                    colors = filterChipColors(CyanPrimary),
+                )
+                FilterChip(
+                    selected = !use24HourTime,
+                    onClick = { onUse24HourTimeChanged(false) },
+                    label = { Text("12-hour") },
+                    colors = filterChipColors(CyanPrimary),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingSwitchRow(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+            Text(description, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+        }
+        Spacer(Modifier.width(16.dp))
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
@@ -509,13 +693,16 @@ private fun PassCard(
                 ) {
                     val status = passStatusLabel(pass, currentTime)
                     if (status != "Passed") {
+                        val targetInstant = if (status == "Active") pass.los else pass.aos
+                        val remaining = Duration.between(currentTime, targetInstant)
+                        val countdownOrDate = if (status == "Upcoming" && remaining > Duration.ofHours(24)) {
+                            passDateFormatter.format(pass.aos)
+                        } else {
+                            formatCountdown(remaining)
+                        }
                         PassDatum(
                             label = if (status == "Active") "ENDS IN" else "STARTS AT",
-                            value = if (status == "Active") {
-                                "${timeFormatter.format(pass.los)} (${formatCountdown(Duration.between(currentTime, pass.los))})"
-                            } else {
-                                "${timeFormatter.format(pass.aos)} (${formatStartCountdown(currentTime, pass.aos)})"
-                            },
+                            value = "${formatAppTime(targetInstant)} ($countdownOrDate)",
                             modifier = Modifier.weight(1f),
                         )
                     } else {
@@ -523,14 +710,15 @@ private fun PassCard(
                     }
                     PassDatum(
                         label = "ELEV.", value = "${pass.maxElevationDegrees.roundToInt()}°", color = accent,
-                        modifier = Modifier.width(48.dp),
+                        modifier = Modifier.width(40.dp),
                         alignment = TextAlign.End,
                     )
                     PassDatum(
                         label = "DIR.", value = passDirection(pass), color = accent,
-                        modifier = Modifier.width(64.dp),
+                        modifier = Modifier.width(72.dp),
                         alignment = TextAlign.End,
                         labelModifier = Modifier.padding(end = 8.dp),
+                        valueStyle = MaterialTheme.typography.titleSmall,
                     )
                 }
             }
@@ -596,7 +784,8 @@ private fun LocationSummaryCard(
                 SummaryDivider()
                 SummaryBlock(
                     label = "LOCAL TIME",
-                    value = clockFormatter.format(currentTime),
+                    value = formatAppTime(currentTime),
+                    detail = dateFormatter.format(currentTime),
                     modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.End,
                 )
@@ -609,6 +798,7 @@ private fun LocationSummaryCard(
 private fun SummaryBlock(
     label: String,
     value: String,
+    detail: String = "",
     modifier: Modifier = Modifier,
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     color: Color = MaterialTheme.colorScheme.onSurface,
@@ -630,6 +820,13 @@ private fun SummaryBlock(
             fontWeight = FontWeight.Bold,
             color = color,
         )
+        if (detail.isNotBlank()) {
+            Text(
+                text = detail,
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary,
+            )
+        }
     }
 }
 
@@ -651,6 +848,7 @@ private fun PassDatum(
     modifier: Modifier = Modifier,
     alignment: TextAlign = TextAlign.Start,
     labelModifier: Modifier = Modifier,
+    valueStyle: TextStyle? = null,
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(
@@ -664,7 +862,7 @@ private fun PassDatum(
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.titleMedium,
+            style = valueStyle ?: MaterialTheme.typography.titleMedium,
             color = color,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.fillMaxWidth(),
@@ -708,11 +906,10 @@ private fun PassDetail(
             )
         }
         item { PassSummaryCard(pass = pass, accent = accent, currentTime = currentTime) }
-        item { DownlinkTuningTimeline(pass = pass, currentTime = currentTime) }
+        item { FrequenciesAndOperatingInfoCard(pass = pass, accent = accent, currentTime = currentTime) }
         item {
             PassTimeline(pass = pass, accent = accent, currentTime = currentTime)
         }
-        item { FrequencyCard(pass = pass, accent = accent) }
         item {
             DetailSection(
                 title = "OPERATING NOTES",
@@ -740,15 +937,15 @@ private fun PassSummaryCard(
     val currentAzimuth = livePoint?.azimuthDegrees ?: pass.aosAzimuthDegrees
     val currentElevation = livePoint?.elevationDegrees ?: 0.0
     TelemetryCard(title = "PASS SUMMARY", accent = accent) {
-        TelemetryValue("AOS", timeFormatter.format(pass.aos), "${formatAzimuth(pass.aosAzimuthDegrees)}")
+        TelemetryValue("AOS", formatAppTime(pass.aos), "${formatAzimuth(pass.aosAzimuthDegrees)}")
         TelemetryDivider()
         TelemetryValue(
             "MAX ELEVATION",
             "${pass.maxElevationDegrees.roundToInt()} deg",
-            timeFormatter.format(pass.aos.plusSeconds(Duration.between(pass.aos, pass.los).seconds / 2)),
+            formatAppTime(pass.aos.plusSeconds(Duration.between(pass.aos, pass.los).seconds / 2)),
         )
         TelemetryDivider()
-        TelemetryValue("LOS", timeFormatter.format(pass.los), "${formatAzimuth(pass.losAzimuthDegrees)}")
+        TelemetryValue("LOS", formatAppTime(pass.los), "${formatAzimuth(pass.losAzimuthDegrees)}")
         TelemetryDivider()
         TelemetryValue(
             "CURRENT",
@@ -759,14 +956,16 @@ private fun PassSummaryCard(
 }
 
 @Composable
-private fun DownlinkTuningTimeline(
+private fun FrequenciesAndOperatingInfoCard(
     pass: PassSummary,
+    accent: Color,
     currentTime: Instant,
 ) {
     val context = LocalContext.current
     val tuningPoints = remember(pass) { pass.downlinkTuningPoints() }
     val nominalFrequencyHertz = remember(pass) { downlinkCenterFrequencyHertz(pass.satellite.downlink) }
     val chirpCsv = remember(pass, tuningPoints) { pass.toChirpCsv(tuningPoints) }
+    val (uplinkFrequency, uplinkTone) = remember(pass) { splitFrequencyTone(pass.satellite.uplink) }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -779,8 +978,34 @@ private fun DownlinkTuningTimeline(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "DOWNLINK TUNING",
+                text = "FREQUENCIES AND OPERATING INFO",
                 style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = CyanPrimary,
+            )
+            FrequencyValue(
+                label = "MODE",
+                value = pass.satellite.modes.joinToString { it.label },
+                color = accent,
+            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                FrequencyValue(
+                    label = "UPLINK (TX)",
+                    value = uplinkFrequency,
+                    detail = uplinkTone,
+                    modifier = Modifier.weight(1f),
+                    color = OrbitBlue,
+                )
+                FrequencyValue(
+                    label = "DOWNLINK (RX)",
+                    value = pass.satellite.downlink,
+                    modifier = Modifier.weight(1f),
+                    color = CyanSecondary,
+                )
+            }
+            Text(
+                text = "DOPPLER TUNING",
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = CyanPrimary,
             )
@@ -824,7 +1049,7 @@ private fun DownlinkTuningTimeline(
                             )
                         }
                         Text(
-                            text = timeFormatter.format(selectedPoint.instant),
+                            text = formatAppTime(selectedPoint.instant),
                             style = MaterialTheme.typography.titleLarge,
                             color = TextPrimary,
                         )
@@ -941,7 +1166,7 @@ private fun DopplerFrequencyTable(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         )
                         Text(
-                            text = timeFormatter.format(point.instant),
+                            text = formatAppTime(point.instant),
                             modifier = Modifier.weight(0.32f),
                             style = MaterialTheme.typography.titleMedium,
                             color = if (isSelected) SignalGreen else TextPrimary,
@@ -1050,47 +1275,6 @@ private fun DopplerFrequencyChart(
             end = Offset(markerX, top + height),
             strokeWidth = 2.dp.toPx(),
         )
-    }
-}
-
-@Composable
-private fun FrequencyCard(pass: PassSummary, accent: Color) {
-    val (uplinkFrequency, uplinkTone) = splitFrequencyTone(pass.satellite.uplink)
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, SpaceBorder, MaterialTheme.shapes.medium),
-        colors = CardDefaults.cardColors(containerColor = SpaceSurface.copy(alpha = 0.9f)),
-        shape = MaterialTheme.shapes.medium,
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(
-                "FREQUENCIES & OPERATING INFO",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = CyanPrimary,
-            )
-            FrequencyValue(
-                label = "MODE",
-                value = pass.satellite.modes.joinToString { it.label },
-                color = accent,
-            )
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                FrequencyValue(
-                    label = "UPLINK (TX)",
-                    value = uplinkFrequency,
-                    detail = uplinkTone,
-                    modifier = Modifier.weight(1f),
-                    color = OrbitBlue,
-                )
-                FrequencyValue(
-                    label = "DOWNLINK (RX)",
-                    value = pass.satellite.downlink,
-                    modifier = Modifier.weight(1f),
-                    color = CyanSecondary,
-                )
-            }
-        }
     }
 }
 
@@ -1285,12 +1469,12 @@ private fun PassTimeline(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
-                        timeFormatter.format(pass.aos),
+                        formatAppTime(pass.aos),
                         style = MaterialTheme.typography.labelMedium,
                         color = TextSecondary,
                     )
                     Text(
-                        timeFormatter.format(pass.los),
+                        formatAppTime(pass.los),
                         style = MaterialTheme.typography.labelMedium,
                         color = TextSecondary,
                     )
@@ -1509,7 +1693,7 @@ private fun OrbitPreviewCard(
             ) {
                 Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
                     Text("AOS", color = SignalGreen, style = MaterialTheme.typography.labelLarge)
-                    Text(timeFormatter.format(pass.aos), fontWeight = FontWeight.Bold)
+                    Text(formatAppTime(pass.aos), fontWeight = FontWeight.Bold)
                 }
             }
             Surface(
@@ -1525,7 +1709,7 @@ private fun OrbitPreviewCard(
                     horizontalAlignment = Alignment.End,
                 ) {
                     Text("LOS", color = Color(0xFFFF4D5A), style = MaterialTheme.typography.labelLarge)
-                    Text(timeFormatter.format(pass.los), fontWeight = FontWeight.Bold)
+                    Text(formatAppTime(pass.los), fontWeight = FontWeight.Bold)
                 }
             }
             val countdown = when {
@@ -1560,6 +1744,7 @@ private fun OrbitPreviewCard(
                 Text(formatDuration(pass.aos, pass.los), fontWeight = FontWeight.Bold)
             }
             currentTuningPoint?.let { tuningPoint ->
+                val channel = tuningPoints.indexOf(tuningPoint) + 1
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -1572,12 +1757,23 @@ private fun OrbitPreviewCard(
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text("TUNE", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
-                        Text(
-                            text = formatFrequencyHertz(tuningPoint.frequencyHertz),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = CyanPrimary,
-                            fontWeight = FontWeight.Bold,
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "($channel)",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = SignalGreen,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                text = formatFrequencyHertz(tuningPoint.frequencyHertz.chirpChannelFrequencyHertz()),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = CyanPrimary,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
                 }
             }
@@ -1758,33 +1954,6 @@ private fun StatusPill(
 }
 
 @Composable
-private fun HeaderActionButton(
-    text: String,
-    onClick: () -> Unit,
-    isLoading: Boolean = false,
-) {
-    Surface(
-        modifier = Modifier
-            .border(1.dp, CyanPrimary.copy(alpha = 0.65f), CircleShape)
-            .clickable(onClick = onClick),
-        shape = CircleShape,
-        color = CyanPrimary.copy(alpha = 0.1f),
-        contentColor = CyanPrimary,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = if (isLoading) 8.dp else 12.dp, vertical = 7.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-            }
-            Text(text = text, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-@Composable
 private fun StarField(
     modifier: Modifier = Modifier,
     alpha: Float = 1f,
@@ -1850,7 +2019,7 @@ private fun PassTime(label: String, instant: Instant) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            text = timeFormatter.format(instant),
+            text = formatAppTime(instant),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Medium,
         )
@@ -2176,12 +2345,28 @@ private fun CenteredMessage(
     }
 }
 
-private val timeFormatter = DateTimeFormatter
+private val timeFormatter24 = DateTimeFormatter
     .ofPattern("HH:mm")
     .withZone(ZoneId.systemDefault())
 
-private val clockFormatter = DateTimeFormatter
+private val timeFormatter12 = DateTimeFormatter
     .ofPattern("h:mm a")
+    .withZone(ZoneId.systemDefault())
+
+private val LocalTimeFormatter = staticCompositionLocalOf { timeFormatter24 }
+
+private fun timeFormatterFor(use24HourTime: Boolean): DateTimeFormatter =
+    if (use24HourTime) timeFormatter24 else timeFormatter12
+
+@Composable
+private fun formatAppTime(instant: Instant): String = LocalTimeFormatter.current.format(instant)
+
+private val dateFormatter = DateTimeFormatter
+    .ofPattern("MMM d, yyyy")
+    .withZone(ZoneId.systemDefault())
+
+private val passDateFormatter = DateTimeFormatter
+    .ofPattern("MMM d")
     .withZone(ZoneId.systemDefault())
 
 private fun spaceGradient(): Brush = Brush.verticalGradient(
@@ -2381,10 +2566,6 @@ private fun createLocationMap(
 }
 
 private fun Double.formatMapCoordinate(): String = "%.5f".format(this)
-
-private fun formatStartCountdown(currentTime: Instant, start: Instant): String {
-    return formatCountdown(Duration.between(currentTime, start))
-}
 
 @Composable
 private fun filterChipColors(accent: Color) = androidx.compose.material3.FilterChipDefaults.filterChipColors(
