@@ -22,9 +22,9 @@ SatQSO is an Android pass planner for amateur-radio satellites. It calculates pa
 
 <table>
   <tr>
-    <td align="center"><a href="docs/screenshots/home.png"><img src="docs/screenshots/home-thumb.png" alt="Upcoming pass list"></a><br>Upcoming passes</td>
-    <td align="center"><a href="docs/screenshots/filters.png"><img src="docs/screenshots/filters-thumb.png" alt="Pass filters"></a><br>Filters</td>
-    <td align="center"><a href="docs/screenshots/gps.png"><img src="docs/screenshots/gps-thumb.png" alt="GPS location picker"></a><br>GPS location picker</td>
+    <td align="center"><a href="docs/screenshots/home.png"><img src="docs/screenshots/home-thumb-new.png" alt="Upcoming pass list"></a><br>Upcoming passes</td>
+    <td align="center"><a href="docs/screenshots/filters.png"><img src="docs/screenshots/filters-thumb-new.png" alt="Pass filters"></a><br>Filters</td>
+    <td align="center"><a href="docs/screenshots/gps.png"><img src="docs/screenshots/gps-thumb-new.png" alt="GPS location picker"></a><br>GPS location picker</td>
   </tr>
 </table>
 
@@ -32,15 +32,15 @@ SatQSO is an Android pass planner for amateur-radio satellites. It calculates pa
 
 <table>
   <tr>
-    <td><a href="docs/screenshots/pass-detail.png"><img src="docs/screenshots/pass-detail-thumb.png" alt="Compass pass tracking"></a></td>
-    <td><a href="docs/screenshots/pass-detail-middle.png"><img src="docs/screenshots/pass-detail-middle-thumb.png" alt="Pass frequencies and operating information"></a></td>
-    <td><a href="docs/screenshots/pass-detail-bottom.png"><img src="docs/screenshots/pass-detail-bottom-thumb.png" alt="Pass timeline and operating information"></a></td>
+    <td><a href="docs/screenshots/pass-detail.png"><img src="docs/screenshots/pass-detail-thumb-new.png" alt="Compass pass tracking"></a></td>
+    <td><a href="docs/screenshots/pass-detail-middle.png"><img src="docs/screenshots/pass-detail-middle-thumb-new.png" alt="Pass frequencies and operating information"></a></td>
+    <td><a href="docs/screenshots/pass-detail-bottom.png"><img src="docs/screenshots/pass-detail-bottom-thumb-new.png" alt="Pass timeline and operating information"></a></td>
   </tr>
 </table>
 
 ### Settings
 
-[![Settings](docs/screenshots/settings-thumb.png)](docs/screenshots/settings.png)
+[![Settings](docs/screenshots/settings-thumb-new.png)](docs/screenshots/settings.png)
 
 ## Install
 
