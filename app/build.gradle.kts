@@ -22,8 +22,8 @@ android {
         applicationId = "com.thenetworkings.satqso"
         minSdk = 24
         targetSdk = 37
-        versionCode = 7
-        versionName = "1.3.5"
+        versionCode = 8
+        versionName = "1.3.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
